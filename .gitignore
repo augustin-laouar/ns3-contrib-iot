@@ -1,0 +1,7 @@
+# Ignore everything by default
+*
+
+# Include specific files that should be tracked by Git
+!.gitignore
+!.contrib/
+!.contrib/**
