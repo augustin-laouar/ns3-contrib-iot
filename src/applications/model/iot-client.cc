@@ -18,7 +18,7 @@ TypeId
 IotClient::GetTypeId()
 {
     static TypeId tid =
-        TypeId("ns3::UdpServer")
+        TypeId("ns3::IotClient")
             .SetParent<Application>()
             .SetGroupName("Applications")
             .AddConstructor<IotClient>()
