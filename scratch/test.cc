@@ -98,7 +98,8 @@ int main(int argc, char* argv[]) {
     }
 
     cameraApps.Stop(Seconds(simTimeSec));
-
+    
+    Simulator::Stop(Seconds(11.0));
     Simulator::Run();
     Simulator::Destroy();
 
