@@ -1,0 +1,17 @@
+# Ignore everything by default
+*
+
+# Include specific files that should be tracked by Git
+!.gitignore
+!/src/
+!/src/applications/
+!src/applications/model/
+!src/applications/model/iot-camera.h
+!src/applications/model/iot-camera.cc
+!src/applications/model/iot-client.h
+!src/applications/model/iot-client.cc
+!/src/applications/helper/
+!src/applications/helper/iot-helper.h
+!src/applications/helper/iot-helper.cc
+!/scratch/
+!scratch/test.cc
