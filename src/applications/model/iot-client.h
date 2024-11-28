@@ -1,37 +1,87 @@
-#ifndef IOT_CLIENT_H
-#define IOT_CLIENT_H
+#ifndef TCP_CLIENT_H
+#define TCP_CLIENT_H
 
-#include "ns3/application.h"
-#include "ns3/traced-callback.h"
+#include <ns3/address.h>
+#include <ns3/application.h>
+#include <ns3/traced-callback.h>
 
-namespace ns3 
-{
+namespace ns3 {
+
 class Socket;
 class Packet;
 
-class IotClient : public Application
-{
+/**
+ * \ingroup applications
+ * Simple TCP client application for sending and receiving data.
+ *
+ * This application establishes a connection to a remote server,
+ * sends data, and handles incoming data.
+ */
+class IotClient : public Application {
+public:
+    IotClient();
 
-    public:
-        static TypeId GetTypeId();
+    static TypeId GetTypeId();
 
-        IotClient();
-        ~IotClient() override;
-        uint64_t GetReceived() const;
+    /**
+     * Get the socket used by this client.
+     * \return The client socket.
+     */
+    Ptr<Socket> GetSocket() const;
 
-    private:
-        void StartApplication() override;
-        void StopApplication() override;
-        void HandleRead(Ptr<Socket> socket);
+protected:
+    void DoDispose() override;
 
-        uint16_t m_port;
-        Ptr<Socket> m_socket;
-        Ptr<Socket> m_socket6;
-        uint64_t m_received;
+private:
+    void StartApplication() override;
+    void StopApplication() override;
 
-        TracedCallback<Ptr<const Packet>> m_rxTrace;
-        TracedCallback<Ptr<const Packet>, const Address&, const Address&> m_rxTraceWithAddresses;
+    // SOCKET CALLBACK METHODS
 
+    /**
+     * Called when the connection is successfully established.
+     * \param socket The connected socket.
+     */
+    void ConnectionSucceededCallback(Ptr<Socket> socket);
+
+    /**
+     * Called when the connection attempt fails.
+     * \param socket The socket.
+     */
+    void ConnectionFailedCallback(Ptr<Socket> socket);
+
+    /**
+     * Called when data is received on the socket.
+     * \param socket The socket receiving the data.
+     */
+    void ReceivedDataCallback(Ptr<Socket> socket);
+
+    /**
+     * Called when the socket has available buffer space for sending.
+     * \param socket The socket.
+     * \param availableBufferSize The available buffer size.
+     */
+    void SendCallback(Ptr<Socket> socket, uint32_t availableBufferSize);
+
+    /// The socket for sending and receiving data.
+    Ptr<Socket> m_socket;
+
+    /// Remote camera address.
+    Address m_remoteCameraAddress;
+
+    /// Remote camera port.
+    uint16_t m_remoteCameraPort;
+
+    /// Buffer size for sending data.
+    uint32_t m_sendBufferSize;
+    
+    /// Trace for received packets.
+    TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;
+
+    /// Trace for sent packets.
+    TracedCallback<Ptr<const Packet>> m_txTrace;
 };
-} //namespace ns3
-#endif /* IOT_CLIENT_H */
+
+} // namespace ns3
+
+#endif /* TCP_CLIENT_H */

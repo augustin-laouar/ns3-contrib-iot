@@ -1,90 +1,106 @@
-/*
- * SPDX-License-Identifier: GPL-2.0-only
- */
-
 #include "ns3/applications-module.h"
 #include "ns3/core-module.h"
-#include "ns3/csma-module.h"
 #include "ns3/internet-module.h"
-#include <fstream>
+#include "ns3/network-module.h"
+#include "ns3/mobility-module.h"
+#include "ns3/wifi-module.h"
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("IotExample");
 
-int
-main(int argc, char* argv[])
-{
-    // Declare variables used in command-line arguments
-    bool useV6 = false;
-    bool logging = true;
-    Address clientAddress;
+void CameraRx(Ptr<const Packet> packet, const Address& address) {
+    NS_LOG_INFO("Camera received a packet of " << packet->GetSize() << " bytes from " << InetSocketAddress::ConvertFrom(address).GetIpv4());
+}
 
+void CameraTx(Ptr<const Packet> packet) {
+    NS_LOG_INFO("Camera sent a packet of " << packet->GetSize() << " bytes.");
+}
+
+void ClientRx(Ptr<const Packet> packet, const Address& address) {
+    NS_LOG_INFO("Client received a packet of " << packet->GetSize() << " bytes from " << InetSocketAddress::ConvertFrom(address).GetIpv4());
+}
+
+int main(int argc, char* argv[]) {
+    double simTimeSec = 10.0;
     CommandLine cmd(__FILE__);
-    cmd.AddValue("useIpv6", "Use Ipv6", useV6);
-    cmd.AddValue("logging", "Enable logging", logging);
+    cmd.AddValue("SimulationTime", "Length of simulation in seconds.", simTimeSec);
     cmd.Parse(argc, argv);
 
-    if (logging)
-    {
-        LogComponentEnable("IotCamera", LOG_LEVEL_INFO);
-        LogComponentEnable("IotClient", LOG_LEVEL_INFO);
+    Time::SetResolution(Time::NS);
+    LogComponentEnableAll(LOG_PREFIX_TIME);
+    LogComponentEnable("IotExample", LOG_ALL);
+    LogComponentEnable("IotCamera", LOG_ALL);
+    LogComponentEnable("IotClient", LOG_ALL);
+
+    NodeContainer wifiApNode;
+    wifiApNode.Create(1); // AP node
+    NodeContainer wifiStaNodes;
+    wifiStaNodes.Create(2); // Client nodes
+    NodeContainer wifiCameraNode;
+    wifiCameraNode.Create(1); // Camera node
+
+    YansWifiChannelHelper channel = YansWifiChannelHelper::Default();
+    YansWifiPhyHelper phy;
+    phy.SetChannel(channel.Create());
+
+    WifiHelper wifi;
+    wifi.SetStandard(WIFI_STANDARD_80211n);
+    wifi.SetRemoteStationManager("ns3::IdealWifiManager");
+
+    Ssid ssid = Ssid("wifi-network");
+    WifiMacHelper mac;
+
+    mac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
+    NetDeviceContainer apDevice = wifi.Install(phy, mac, wifiApNode);
+
+    mac.SetType("ns3::StaWifiMac", "Ssid", SsidValue(ssid), "ActiveProbing", BooleanValue(false));
+    NetDeviceContainer staDevices = wifi.Install(phy, mac, wifiStaNodes);
+
+    NetDeviceContainer cameraDevice = wifi.Install(phy, mac, wifiCameraNode);
+
+    MobilityHelper mobility;
+    mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+    mobility.Install(wifiApNode);      // AP
+    mobility.Install(wifiStaNodes);   // Clients
+    mobility.Install(wifiCameraNode); // Camera
+
+    InternetStackHelper stack;
+    stack.Install(wifiApNode);
+    stack.Install(wifiStaNodes);
+    stack.Install(wifiCameraNode);
+
+    Ipv4AddressHelper address;
+    address.SetBase("10.1.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer apInterface = address.Assign(apDevice);
+    Ipv4InterfaceContainer staInterfaces = address.Assign(staDevices);
+    Ipv4InterfaceContainer cameraInterface = address.Assign(cameraDevice);
+
+    Ipv4Address cameraAddress = cameraInterface.GetAddress(0);
+
+    uint16_t cameraPort = 8800;
+    IotCameraHelper cameraHelper(Address(cameraAddress), cameraPort);
+    ApplicationContainer cameraApps = cameraHelper.Install(wifiCameraNode.Get(0));
+    Ptr<IotCamera> camera = cameraApps.Get(0)->GetObject<IotCamera>();
+
+    camera->TraceConnectWithoutContext("Rx", MakeCallback(&CameraRx));
+    camera->TraceConnectWithoutContext("Tx", MakeCallback(&CameraTx));
+
+
+    for (uint32_t i = 0; i < wifiStaNodes.GetN(); ++i) {
+        IotClientHelper clientHelper(Address(cameraAddress), cameraPort);
+        ApplicationContainer clientApps = clientHelper.Install(wifiStaNodes.Get(i));
+        Ptr<IotClient> client = clientApps.Get(0)->GetObject<IotClient>();
+
+        client->TraceConnectWithoutContext("Rx", MakeCallback(&ClientRx));
+
+        clientApps.Stop(Seconds(simTimeSec));
     }
-    NS_LOG_INFO("Create nodes in above topology.");
-    NodeContainer n;
-    n.Create(2);
 
-    InternetStackHelper internet;
-    internet.Install(n);
+    cameraApps.Stop(Seconds(simTimeSec));
 
-    //Lien wifi CSMA
-    NS_LOG_INFO("Create channel between the two nodes.");
-    CsmaHelper csma;
-    csma.SetChannelAttribute("DataRate", DataRateValue(DataRate(5000000)));
-    csma.SetChannelAttribute("Delay", TimeValue(MilliSeconds(2)));
-    csma.SetDeviceAttribute("Mtu", UintegerValue(1400));
-    NetDeviceContainer d = csma.Install(n);
-
-    //Assign ip addr
-    NS_LOG_INFO("Assign IP Addresses.");
-    if (!useV6)
-    {
-        Ipv4AddressHelper ipv4;
-        ipv4.SetBase("10.1.1.0", "255.255.255.0");
-        Ipv4InterfaceContainer i = ipv4.Assign(d);
-        clientAddress = Address(i.GetAddress(1));
-    }
-    else
-    {
-        Ipv6AddressHelper ipv6;
-        ipv6.SetBase("2001:0000:f00d:cafe::", Ipv6Prefix(64));
-        Ipv6InterfaceContainer i6 = ipv6.Assign(d);
-        clientAddress = Address(i6.GetAddress(1, 1));
-    }
-
-
-    NS_LOG_INFO("Create IotClient application on node 1.");
-    uint16_t port = 4000;
-    IotClientHelper client(port);
-    ApplicationContainer apps = client.Install(n.Get(1));
-    apps.Start(Seconds(1.0));
-    apps.Stop(Seconds(10.0));
-
-    NS_LOG_INFO("Create IotCamera application on node 0 to send to node 1.");
-    uint32_t MaxPacketSize = 1024;
-    Time interPacketInterval = Seconds(0.05);
-    uint32_t maxPacketCount = 10;
-    IotCameraHelper camera(clientAddress, port);
-    camera.SetAttribute("MaxPackets", UintegerValue(maxPacketCount));
-    camera.SetAttribute("Interval", TimeValue(interPacketInterval));
-    camera.SetAttribute("PacketSize", UintegerValue(MaxPacketSize));
-    apps = camera.Install(n.Get(0));
-    apps.Start(Seconds(2.0));
-    apps.Stop(Seconds(10.0));
-
-    NS_LOG_INFO("Run Simulation.");
     Simulator::Run();
     Simulator::Destroy();
-    NS_LOG_INFO("Done.");
+
     return 0;
 }

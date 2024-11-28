@@ -1,195 +1,202 @@
 #include "iot-camera.h"
-#include "ns3/inet-socket-address.h"
-#include "ns3/inet6-socket-address.h"
-#include "ns3/ipv4-address.h"
-#include "ns3/packet.h"
-#include "ns3/socket.h"
-#include "ns3/nstime.h"
-#include "ns3/uinteger.h"
-#include "ns3/simulator.h"
-#include "seq-ts-header.h"
 
-namespace ns3
-{
+#include <ns3/log.h>
+#include <ns3/inet-socket-address.h>
+#include <ns3/inet6-socket-address.h>
+#include <ns3/socket.h>
+#include <ns3/tcp-socket-factory.h>
+#include <ns3/simulator.h>
+#include <ns3/uinteger.h>
+#include <random>
 
 NS_LOG_COMPONENT_DEFINE("IotCamera");
 
+namespace ns3 {
+
 NS_OBJECT_ENSURE_REGISTERED(IotCamera);
 
-/* ... */
-TypeId
-IotCamera::GetTypeId()
-{
-    static TypeId tid =
-        TypeId("ns3::IotCamera")
-            .SetParent<Application>()
-            .SetGroupName("Applications")
-            .AddConstructor<IotCamera>()
-            .AddAttribute(
-                "MaxPackets",
-                "The maximum number of packets the application will send (zero means infinite)",
-                UintegerValue(100),
-                MakeUintegerAccessor(&IotCamera::m_count),
-                MakeUintegerChecker<uint32_t>())
-            .AddAttribute("Interval",
-                          "The time to wait between packets",
-                          TimeValue(Seconds(1.0)),
-                          MakeTimeAccessor(&IotCamera::m_interval),
-                          MakeTimeChecker())
-            .AddAttribute("RemoteAddress",
-                          "The destination Address of the outbound packets",
-                          AddressValue(),
-                          MakeAddressAccessor(&IotCamera::m_peerAddress),
-                          MakeAddressChecker())
-            .AddAttribute("RemotePort",
-                          "The destination port of the outbound packets",
-                          UintegerValue(100),
-                          MakeUintegerAccessor(&IotCamera::m_peerPort),
-                          MakeUintegerChecker<uint16_t>())
-            .AddAttribute("PacketSize",
-                          "Size of packets generated. The minimum packet size is 12 bytes which is "
-                          "the size of the header carrying the sequence number and the time stamp.",
-                          UintegerValue(1024),
-                          MakeUintegerAccessor(&IotCamera::m_size),
-                          MakeUintegerChecker<uint32_t>(12, 65507))
-            .AddTraceSource("Tx",
-                            "A new packet is created and sent",
-                            MakeTraceSourceAccessor(&IotCamera::m_txTrace),
-                            "ns3::Packet::TracedCallback")
-            .AddTraceSource("TxWithAddresses",
-                            "A new packet is created and sent",
-                            MakeTraceSourceAccessor(&IotCamera::m_txTraceWithAddresses),
-                            "ns3::Packet::TwoAddressTracedCallback");
+IotCamera::IotCamera()
+    : m_listeningSocket(nullptr), m_state("NOT_STARTED") {
+    NS_LOG_FUNCTION(this);
+}
+
+// static
+TypeId IotCamera::GetTypeId() {
+    static TypeId tid = TypeId("ns3::IotCamera")
+                            .SetParent<Application>()
+                            .AddConstructor<IotCamera>()
+                            .AddAttribute("LocalAddress",
+                                          "The local address to bind the socket to.",
+                                          AddressValue(),
+                                          MakeAddressAccessor(&IotCamera::m_localAddress),
+                                          MakeAddressChecker())
+                            .AddAttribute("LocalPort",
+                                          "Port on which the camera listens.",
+                                          UintegerValue(8800),
+                                          MakeUintegerAccessor(&IotCamera::m_localPort),
+                                          MakeUintegerChecker<uint16_t>());
     return tid;
 }
 
-IotCamera::IotCamera()
-{
+void IotCamera::DoDispose() {
     NS_LOG_FUNCTION(this);
-    m_sent = 0;
-    m_totalTx = 0;
-    m_socket = nullptr;
-    m_sendEvent = EventId();
+    StopApplication();
+    m_clientSockets.clear();
+    Application::DoDispose();
 }
 
-IotCamera::~IotCamera()
-{
+void IotCamera::StartApplication() {
     NS_LOG_FUNCTION(this);
-}
 
-void
-IotCamera::SetRemote(Address ip, uint16_t port)
-{
-    NS_LOG_FUNCTION(this << ip << port);
-    m_peerAddress = ip;
-    m_peerPort = port;
-}
+    if (!m_listeningSocket) {
+        m_listeningSocket = Socket::CreateSocket(GetNode(), TcpSocketFactory::GetTypeId());
 
-void
-IotCamera::SetRemote(Address addr)
-{
-    NS_LOG_FUNCTION(this << addr);
-    m_peerAddress = addr;
-}
+        //define TCP segment size
+        m_listeningSocket->SetAttribute("SegmentSize", UintegerValue(1514));
+        
+        if (Ipv4Address::IsMatchingType(m_localAddress)) {
+            InetSocketAddress local = InetSocketAddress(Ipv4Address::ConvertFrom(m_localAddress), m_localPort);
+            if (m_listeningSocket->Bind(local) == -1) {
+                NS_FATAL_ERROR("Failed to bind IPv4 socket.");
+            }
+        } else if (Ipv6Address::IsMatchingType(m_localAddress)) {
+            Inet6SocketAddress local = Inet6SocketAddress(Ipv6Address::ConvertFrom(m_localAddress), m_localPort);
+            if (m_listeningSocket->Bind(local) == -1) {
+                NS_FATAL_ERROR("Failed to bind IPv6 socket.");
+            }
+        } else {
+            NS_FATAL_ERROR("Unsupported address type.");
+        }
 
-void
-IotCamera::StartApplication()
-{
-    NS_LOG_FUNCTION(this);
-    if (!m_socket)
-    {
-        TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
-        m_socket = Socket::CreateSocket(GetNode(), tid);
-        if (Ipv4Address::IsMatchingType(m_peerAddress))
-        {
-            if (m_socket->Bind() == -1)
-            {
-                NS_FATAL_ERROR("Failed to bind socket");
-            }
-            m_socket->Connect(
-            InetSocketAddress(Ipv4Address::ConvertFrom(m_peerAddress), m_peerPort));          
-        }
-        else if (Ipv6Address::IsMatchingType(m_peerAddress))
-        {
-            if (m_socket->Bind6() == -1)
-            {
-                NS_FATAL_ERROR("Failed to bind socket");
-            }
-            m_socket->Connect(
-                Inet6SocketAddress(Ipv6Address::ConvertFrom(m_peerAddress), m_peerPort));
-        }
-        else if (InetSocketAddress::IsMatchingType(m_peerAddress))
-        {
-            if (m_socket->Bind() == -1)
-            {
-                NS_FATAL_ERROR("Failed to bind socket");
-            }
-            m_socket->Connect(m_peerAddress);
-        }
-        else if (Inet6SocketAddress::IsMatchingType(m_peerAddress))
-        {
-            if (m_socket->Bind6() == -1)
-            {
-                NS_FATAL_ERROR("Failed to bind socket");
-            }
-            m_socket->Connect(m_peerAddress);
-        }
-        else
-        {
-            NS_ASSERT_MSG(false, "Incompatible address type: " << m_peerAddress);
-        }
+        m_listeningSocket->Listen();
+        m_listeningSocket->SetAcceptCallback(
+            MakeCallback(&IotCamera::ConnectionRequestCallback, this),
+            MakeCallback(&IotCamera::NewConnectionCreatedCallback, this));
+        m_listeningSocket->SetCloseCallbacks(
+            MakeCallback(&IotCamera::ConnectionClosedCallback, this),
+            MakeNullCallback<void, Ptr<Socket>>());
+        m_state = "STARTED";
+        NS_LOG_INFO("Camera started, listening on port " << m_localPort);
     }
-    m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
-    m_socket->SetAllowBroadcast(true);
-    m_sendEvent = Simulator::Schedule(Seconds(0.0), &IotCamera::Send, this);
 }
 
-void
-IotCamera::StopApplication()
-{
+void IotCamera::StopApplication() {
     NS_LOG_FUNCTION(this);
-    Simulator::Cancel(m_sendEvent);
+
+    m_state = "STOPPED";
+
+    if (m_listeningSocket) {
+        m_listeningSocket->Close();
+        m_listeningSocket->SetAcceptCallback(MakeNullCallback<bool, Ptr<Socket>, const Address&>(),
+                                             MakeNullCallback<void, Ptr<Socket>, const Address&>());
+        m_listeningSocket = nullptr;
+    }
+
+    for (auto &entry : m_clientSockets) {
+        entry.first->Close();
+        entry.first->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
+        entry.first->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());
+    }
+    m_clientSockets.clear();
+
+    NS_LOG_INFO("Camera stopped.");
 }
 
-void
-IotCamera::Send()
-{
-    NS_LOG_FUNCTION(this);
-    NS_ASSERT(m_sendEvent.IsExpired());
+std::string IotCamera::GetStateString() const {
+    return m_state;
+}
 
+bool IotCamera::ConnectionRequestCallback(Ptr<Socket> socket, const Address &address) {
+    NS_LOG_FUNCTION(this << socket << address);
+    NS_LOG_INFO("Incoming connection request from " << address);
+    return true; // Accept all connections
+}
+
+void IotCamera::NewConnectionCreatedCallback(Ptr<Socket> socket, const Address &address) {
+    NS_LOG_FUNCTION(this << socket << address);
+
+    NS_LOG_INFO("New connection established with " << address);
+    m_clientSockets[socket] = address;
+
+    socket->SetRecvCallback(MakeCallback(&IotCamera::ReceivedDataCallback, this));
+    socket->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());
+}
+
+void IotCamera::ConnectionClosedCallback(Ptr<Socket> socket) {
+    NS_LOG_FUNCTION(this << socket);
+
+    auto it = m_clientSockets.find(socket);
+    if (it != m_clientSockets.end()) {
+        NS_LOG_INFO("Connection with " << it->second << " closed.");
+        m_clientSockets.erase(it);
+    }
+}
+
+
+void IotCamera::ReceivedDataCallback(Ptr<Socket> socket) {
+    NS_LOG_FUNCTION(this << socket);
+
+    Ptr<Packet> packet;
     Address from;
-    Address to;
-    //set les adresses avec les getters
-    m_socket->GetSockName(from);
-    m_socket->GetPeerName(to);
-    SeqTsHeader seqTs;
-    seqTs.SetSeq(m_sent);
-    NS_ABORT_IF(m_size < seqTs.GetSerializedSize());
-    Ptr<Packet> p = Create<Packet>(m_size - seqTs.GetSerializedSize());
 
-    //Trace des paquets avant l'ajout du header
-    m_txTrace(p);
-    m_txTraceWithAddresses(p, from, to);
-    //ajoute un header au paquet
-    p->AddHeader(seqTs);
+    while ((packet = socket->RecvFrom(from))) {
+        if (packet->GetSize() == 0) {
+            break; // EOF
+        }
 
-    if ((m_socket->Send(p)) >= 0)
-    {
-        ++m_sent;
-        m_totalTx += p->GetSize();
-    }
-    if (m_sent < m_count || m_count == 0)
-    {
-        //Si il faut encore envoyé des paquets, schedule le prochain envoi
-        m_sendEvent = Simulator::Schedule(m_interval, &IotCamera::Send, this);
+        uint8_t *buffer = new uint8_t[packet->GetSize()];
+        packet->CopyData(buffer, packet->GetSize());
+        std::string data(reinterpret_cast<char*>(buffer), packet->GetSize());
+        delete[] buffer;
+
+        NS_LOG_INFO("Camera received " << packet->GetSize() << " bytes from " << from);
+
+        if (data == "GET_STREAM") {
+            NS_LOG_INFO("Camera start video stream");
+            SendVideoData(socket);
+        } else {
+            NS_LOG_WARN("Unknown data received: " << data);
+        }    
     }
 }
 
-uint64_t
-IotCamera::GetTotalTx() const
+void
+IotCamera::SendVideoData(Ptr<Socket> socket)
 {
-    return m_totalTx;
+    NS_LOG_FUNCTION(this << socket);
+
+    if (m_state == "STOPPED") {
+        NS_LOG_INFO("Camera is stopped. No more video data will be sent.");
+        return; 
+    }
+
+    std::random_device rd;                           
+    std::mt19937 gen(rd());                          
+    std::uniform_int_distribution<> distrib(200, 1500);
+
+    uint32_t packetSize = distrib(gen);
+
+    Ptr<Packet> packet = Create<Packet>(packetSize);
+    int bytesSent = socket->Send(packet);
+
+    if (bytesSent > 0)
+    {
+        Address clientAddress;
+        socket->GetPeerName(clientAddress);
+        NS_LOG_INFO("Camera sent packet of " << bytesSent << " bytes to " << clientAddress);
+        m_txTrace(packet);
+    }
+    else
+    {
+        NS_LOG_ERROR("Failed to send packet. Socket error: " << socket->GetErrno());
+    }
+
+    //Schedule next packet    
+    std::uniform_real_distribution<> distribInterval(0.1, 1.0);
+    double interPacketInterval = distribInterval(gen);
+
+    Simulator::Schedule(Seconds(interPacketInterval), &IotCamera::SendVideoData, this, socket);
+
 }
 
-
-} // Namespace ns3
+} // namespace ns3
