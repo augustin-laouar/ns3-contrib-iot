@@ -1,0 +1,30 @@
+{
+    "packet-classes": [
+        {
+            "type": "distribution",
+            "payload-sizes": [
+                {"size": 1000, "prabability": 0.1},
+                {"size": 2000, "prabability": 0.9}
+            ],
+            "inter-packet-times": [
+                {"time": 0.1, "prabability": 0.1},
+                {"time": 1, "prabability": 0.9}
+            ]
+        },
+        {
+            "type": "basic",
+            "payload-size": {
+                "min": 100,
+                "max": 1500,
+                "mean": 1402.1,
+                "std-dev": 171.1
+            },
+            "inter-packet-times": {
+                "min": 0.1,
+                "max": 0.3,
+                "mean": 0.12,
+                "std-dev": 0.077    
+            }
+        }
+    ]
+}

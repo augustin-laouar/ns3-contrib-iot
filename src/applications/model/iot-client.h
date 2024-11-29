@@ -1,5 +1,5 @@
-#ifndef TCP_CLIENT_H
-#define TCP_CLIENT_H
+#ifndef IOT_CLIENT_H
+#define IOT_CLIENT_H
 
 #include <ns3/address.h>
 #include <ns3/application.h>
@@ -12,22 +12,19 @@ class Packet;
 
 /**
  * \ingroup applications
- * Simple TCP client application for sending and receiving data.
+ * Simple client application for sending and receiving data.
  *
- * This application establishes a connection to a remote server,
+ * This application establishes a connection to a remote IOT camera,
  * sends data, and handles incoming data.
  */
 class IotClient : public Application {
 public:
+
     IotClient();
 
-    static TypeId GetTypeId();
+    virtual ~IotClient() = default;
 
-    /**
-     * Get the socket used by this client.
-     * \return The client socket.
-     */
-    Ptr<Socket> GetSocket() const;
+    static TypeId GetTypeId();
 
 protected:
     void DoDispose() override;
@@ -84,4 +81,4 @@ private:
 
 } // namespace ns3
 
-#endif /* TCP_CLIENT_H */
+#endif /* IOT_CLIENT_H */

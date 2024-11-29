@@ -9,7 +9,8 @@
 #include <ns3/traced-callback.h>
 #include <map>
 #include <string>
-
+#include <vector>
+#include "packet-class.h"
 namespace ns3
 {
 
@@ -26,9 +27,14 @@ class IotCamera : public Application
 {
 public:
     /**
-     * Creates a new instance of TCP server application.
+     * Creates a new instance of camera application.
      */
     IotCamera();
+
+    /**
+     * Default constructor.
+     */
+    virtual ~IotCamera() = default;
 
     /**
      * Returns the object TypeId.
@@ -41,6 +47,23 @@ public:
      * \return The current state of the application in string format.
      */
     std::string GetStateString() const;
+
+    /**
+     * Add a new PacketClass object to the camera.
+     * \param packetClass The PacketClass object to add.
+     */
+    void AddPacketClass(std::shared_ptr<PacketClass> packetClass);
+
+    /**
+     * Remove a new PacketClass object from the camera.
+     * \param packetClass The PacketClass object to remove.
+     */
+    void RemovePacketClass(std::shared_ptr<PacketClass> packetClass);
+
+    /**
+     * Clear all PacketClass objects.
+     */
+    void ClearPacketClasses();
 
 protected:
     void DoDispose() override;
@@ -87,12 +110,13 @@ private:
      *                            transmission buffer.
      */
     void SendCallback(Ptr<Socket> socket, uint32_t availableBufferSize);
-
+    
     /**
      * Send video data.
      * \param socket Pointer to the socket to send data.
+     * \param packetClass Packet class associated.
      */
-    void SendVideoData(Ptr<Socket> socket);
+    void SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass);
 
     /**
      * Change the state of the server.
@@ -100,6 +124,8 @@ private:
      */
     void SwitchToState(const std::string& state);
 
+    /// List of PacketClass objects (abstract or derived)
+    std::vector<std::shared_ptr<PacketClass>> m_packetClasses;
     /// The listening socket for receiving connection requests from clients.
     Ptr<Socket> m_listeningSocket;
     /// Collection of accepted sockets.

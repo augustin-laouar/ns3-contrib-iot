@@ -92,9 +92,6 @@ void IotClient::StopApplication() {
     NS_LOG_INFO("Client stopped.");
 }
 
-Ptr<Socket> IotClient::GetSocket() const {
-    return m_socket;
-}
 
 void IotClient::ConnectionSucceededCallback(Ptr<Socket> socket) {
     NS_LOG_FUNCTION(this << socket);

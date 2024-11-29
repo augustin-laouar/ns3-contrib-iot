@@ -7,7 +7,8 @@ namespace ns3 {
 
 
 IotClientHelper::IotClientHelper(const Address& address, uint16_t port)
-    : ApplicationHelper("ns3::IotClient") {
+    : ApplicationHelper("ns3::IotClient") 
+{
     m_factory.Set("RemoteCameraAddress", AddressValue(address));
     m_factory.Set("RemoteCameraPort", UintegerValue(port));
 }
@@ -15,7 +16,8 @@ IotClientHelper::IotClientHelper(const Address& address, uint16_t port)
 // IOT CAMERA HELPER /////////////////////////////////////////////////////////
 
 IotCameraHelper::IotCameraHelper(const Address& address, uint16_t port)
-    : ApplicationHelper("ns3::IotCamera") {
+    : ApplicationHelper("ns3::IotCamera") 
+{
     m_factory.Set("LocalAddress", AddressValue(address));
     m_factory.Set("LocalPort", UintegerValue(port));
 }
