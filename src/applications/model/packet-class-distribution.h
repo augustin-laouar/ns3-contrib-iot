@@ -18,6 +18,7 @@ class PacketClassDistribution : public PacketClass
 public:
 
     PacketClassDistribution(
+        u_int16_t id,
         const std::vector<std::pair<uint32_t, double>>& packetSizeDistribution,
         const std::vector<std::pair<double, double>>& interPacketTimeDistribution);
 

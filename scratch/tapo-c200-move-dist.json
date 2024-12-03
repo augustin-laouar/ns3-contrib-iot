@@ -1,0 +1,15 @@
+{
+    "packet-classes": [
+        {
+            "type": "distribution",
+            "payload-sizes": [
+                {"size": 1000, "prabability": 0.1},
+                {"size": 2000, "prabability": 0.9}
+            ],
+            "inter-packet-times": [
+                {"time": 0.1, "prabability": 0.1},
+                {"time": 1, "prabability": 0.9}
+            ]
+        }
+    ]
+}

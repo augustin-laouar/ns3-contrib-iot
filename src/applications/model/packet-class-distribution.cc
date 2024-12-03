@@ -4,6 +4,7 @@ namespace ns3
 {
 
 PacketClassDistribution::PacketClassDistribution(
+    uint16_t id,
     const std::vector<std::pair<uint32_t, 
     double>>& packetSizeDistribution,
     const std::vector<std::pair<double, 
@@ -11,6 +12,7 @@ PacketClassDistribution::PacketClassDistribution(
     : m_payloadSizeDistribution(packetSizeDistribution),
       m_interPacketTimeDistribution(interPacketTimeDistribution)
 {
+    m_id = id;
     // Initialize packet size distribution
     std::vector<double> sizeProbabilities;
     for (const auto& pair : packetSizeDistribution) {

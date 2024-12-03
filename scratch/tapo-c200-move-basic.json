@@ -1,0 +1,68 @@
+{
+    "packet-classes": [
+        {
+            "id": 1,
+            "type": "basic",
+            "payload-size": {
+                "min": 691,
+                "max": 1448,
+                "mean": 744.381,
+                "std-dev": 191.231
+            },
+            "inter-packet-times": {
+                "min": 0.008,
+                "max": 2019.497,
+                "mean": 59.936,
+                "std-dev": 77.852    
+            }
+        },
+        {
+            "id": 2,
+            "type": "basic",
+            "payload-size": {
+                "min": 949,
+                "max": 1514,
+                "mean": 1043.167,
+                "std-dev": 230.660
+            },
+            "inter-packet-times": {
+                "min": 0.008,
+                "max": 2019.497,
+                "mean": 59.936,
+                "std-dev": 77.852    
+            }
+        },
+        {
+            "id": 3,
+            "type": "basic",
+            "payload-size": {
+                "min": 2004,
+                "max": 202720,
+                "mean": 7761.412,
+                "std-dev": 11299.521
+            },
+            "inter-packet-times": {
+                "min": 0.000006,
+                "max": 0.996278,
+                "mean": 0.068435,
+                "std-dev": 0.021381
+            }
+        },
+        {
+            "id": 4,
+            "type": "basic",
+            "payload-size": {
+                "min": 5,
+                "max": 1420,
+                "mean": 730.692,
+                "std-dev": 451.447
+            },
+            "inter-packet-times": {
+                "min": 0.087334,
+                "max": 5.042865,
+                "mean": 0.941867,
+                "std-dev": 0.927757
+            }
+        }
+    ]
+}

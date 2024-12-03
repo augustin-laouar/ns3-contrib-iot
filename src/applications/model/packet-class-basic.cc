@@ -4,6 +4,7 @@ namespace ns3
 {
 
 PacketClassBasic::PacketClassBasic(
+    uint16_t id,
     double minPacketSize, double maxPacketSize, double meanPacketSize, double stdDevPacketSize,
     double minInterPacketTime, double maxInterPacketTime, double meanInterPacketTime, double stdDevInterPacketTime)
     : m_minPacketSize(minPacketSize), m_maxPacketSize(maxPacketSize), 
@@ -11,6 +12,7 @@ PacketClassBasic::PacketClassBasic(
       m_minInterPacketTime(minInterPacketTime), m_maxInterPacketTime(maxInterPacketTime),
       m_meanInterPacketTime(meanInterPacketTime), m_stdDevInterPacketTime(stdDevInterPacketTime)
 {
+    m_id = id;
 }
 
 uint32_t PacketClassBasic::GetPayloadSize() 

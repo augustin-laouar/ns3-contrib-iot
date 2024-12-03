@@ -21,6 +21,9 @@ public:
     //seconds
     virtual double GetInterPacketTime() = 0;
     
+    uint16_t GetId();
+protected: 
+    uint16_t m_id;
 };
 
 } // namespace ns3

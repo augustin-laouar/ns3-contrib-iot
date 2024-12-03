@@ -17,6 +17,7 @@ class PacketClassBasic : public PacketClass
 public:
 
     PacketClassBasic(
+        uint16_t id,
         double minPacketSize, double maxPacketSize, double meanPacketSize, double stdDevPacketSize,
         double minInterPacketTime, double maxInterPacketTime, double meanInterPacketTime, double stdDevInterPacketTime);
 

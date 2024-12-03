@@ -9,7 +9,7 @@
 using json = nlohmann::json;
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("IotExample");
+NS_LOG_COMPONENT_DEFINE("IotBasicExample");
 
 void 
 CameraRx(Ptr<const Packet> packet, const Address& address) 
@@ -32,92 +32,89 @@ ClientRx(Ptr<const Packet> packet, const Address& address)
 void 
 LoadPacketClassFromFile(Ptr<IotCamera> camera, const std::string& fichierJson) 
 {
-    // Lire le fichier JSON
     std::ifstream file(fichierJson);
     if (!file.is_open()) {
-        std::cerr << "Erreur: impossible d'ouvrir le fichier " << fichierJson << std::endl;
+        NS_LOG_ERROR("Error: Unable to open the file " << fichierJson);
         return;
     }
 
-    // Parse le fichier en objet JSON
     json j;
     try {
         file >> j;
     } catch (const json::parse_error& e) {
-        std::cerr << "Erreur de parsing du fichier JSON: " << e.what() << std::endl;
+        NS_LOG_ERROR("Error parsing the JSON file: " << e.what());
         return;
     }
 
-    // Vérifie si le fichier contient des classes de paquets
     if (!j.contains("packet-classes") || !j["packet-classes"].is_array()) {
-        std::cerr << "Erreur: le fichier JSON doit contenir un tableau 'packet-classes'." << std::endl;
+        NS_LOG_ERROR("Error: JSON file must contain a 'packet-classes' array.");
         return;
     }
 
-    // Parcourir chaque définition de classe de paquet
     for (const auto& packetClass : j["packet-classes"]) {
-        // Vérifie le type de la classe
         if (!packetClass.contains("type") || !packetClass["type"].is_string()) {
-            std::cerr << "Erreur: chaque classe de paquet doit avoir un champ 'type'." << std::endl;
+            NS_LOG_WARN("Warning: Each packet class must have a 'type' field.");
             continue;
         }
-
+        if (!packetClass.contains("id") || !packetClass["id"].is_number_integer()) {
+            NS_LOG_WARN("Warning: Each packet class must have an 'id' field.");
+            continue;
+        }
         std::string type = packetClass["type"];
+        uint16_t id = packetClass["id"];
         if (type == "distribution") {
-            // Charger une classe de type distribution
             if (!packetClass.contains("payload-sizes") || !packetClass.contains("inter-packet-times")) {
-                std::cerr << "Erreur: type 'distribution' doit contenir 'payload-sizes' et 'inter-packet-times'." << std::endl;
+                NS_LOG_WARN("Warning: 'distribution' type must contain 'payload-sizes' and 'inter-packet-times'.");
                 continue;
             }
 
-            // Charger les distributions pour les tailles de paquets
             std::vector<std::pair<uint32_t, double>> payloadSizes;
             for (const auto& size : packetClass["payload-sizes"]) {
                 if (size.contains("size") && size.contains("prabability")) {
                     payloadSizes.emplace_back(size["size"].get<uint32_t>(), size["prabability"].get<double>());
+                } else {
+                    NS_LOG_WARN("Warning: Invalid format for 'payload-sizes'. Skipping entry.");
                 }
             }
 
-            // Charger les distributions pour les temps inter-paquets
             std::vector<std::pair<double, double>> interPacketTimes;
             for (const auto& time : packetClass["inter-packet-times"]) {
                 if (time.contains("time") && time.contains("prabability")) {
                     interPacketTimes.emplace_back(time["time"].get<double>(), time["prabability"].get<double>());
+                } else {
+                    NS_LOG_WARN("Warning: Invalid format for 'inter-packet-times'. Skipping entry.");
                 }
             }
 
-            // Créer l'objet PacketClassDistribution
-            std::shared_ptr<PacketClassDistribution> distributionClass = std::make_shared<PacketClassDistribution>(payloadSizes, interPacketTimes);
+            std::shared_ptr<PacketClassDistribution> distributionClass = std::make_shared<PacketClassDistribution>(id, payloadSizes, interPacketTimes);
             camera->AddPacketClass(distributionClass);
+            NS_LOG_INFO("Distribution packet class added successfully.");
 
         } else if (type == "basic") {
-            // Charger une classe de type basic
             if (!packetClass.contains("payload-size") || !packetClass.contains("inter-packet-times")) {
-                std::cerr << "Erreur: type 'basic' doit contenir 'payload-size' et 'inter-packet-times'." << std::endl;
+                NS_LOG_WARN("Warning: 'basic' type must contain 'payload-size' and 'inter-packet-times'.");
                 continue;
             }
 
-            // Charger les statistiques pour les tailles de paquets
             auto payloadSize = packetClass["payload-size"];
             double minSize = payloadSize["min"];
             double maxSize = payloadSize["max"];
             double meanSize = payloadSize["mean"];
             double stdDevSize = payloadSize["std-dev"];
 
-            // Charger les statistiques pour les temps inter-paquets
             auto interPacketTimes = packetClass["inter-packet-times"];
             double minTime = interPacketTimes["min"];
             double maxTime = interPacketTimes["max"];
             double meanTime = interPacketTimes["mean"];
             double stdDevTime = interPacketTimes["std-dev"];
 
-            // Créer l'objet PacketClassBasic
             std::shared_ptr<PacketClassBasic> basicClass = std::make_shared<PacketClassBasic>(
-                minSize, maxSize, meanSize, stdDevSize, minTime, maxTime, meanTime, stdDevTime);
+                id, minSize, maxSize, meanSize, stdDevSize, minTime, maxTime, meanTime, stdDevTime);
             camera->AddPacketClass(basicClass);
+            NS_LOG_INFO("Basic packet class added successfully.");
 
         } else {
-            std::cerr << "Erreur: type inconnu '" << type << "'." << std::endl;
+            NS_LOG_WARN("Warning: Unknown type '" << type << "'. Skipping this entry.");
         }
     }
 }
@@ -125,15 +122,15 @@ LoadPacketClassFromFile(Ptr<IotCamera> camera, const std::string& fichierJson)
 int 
 main(int argc, char* argv[]) 
 {
-    double simTimeSec = 10.0;
+    double simTimeSec = 50.0;
     CommandLine cmd(__FILE__);
     cmd.AddValue("SimulationTime", "Length of simulation in seconds.", simTimeSec);
     cmd.Parse(argc, argv);
 
     Time::SetResolution(Time::NS);
     LogComponentEnableAll(LOG_PREFIX_TIME);
-    LogComponentEnable("IotExample", LOG_INFO);
-    //LogComponentEnable("IotCamera", LOG_INFO);
+    //LogComponentEnable("IotBasicExample", LOG_INFO);
+    LogComponentEnable("IotCamera", LOG_INFO);
     //LogComponentEnable("IotClient", LOG_INFO);
     //LogComponentEnable("ApWifiMac", LOG_LEVEL_ALL);
     //LogComponentEnable("StaWifiMac", LOG_LEVEL_ALL);
@@ -165,6 +162,9 @@ main(int argc, char* argv[])
 
     NetDeviceContainer cameraDevice = wifi.Install(phy, mac, wifiCameraNode);
 
+    //enable packet capture
+    //phy.EnablePcap("move-basic", cameraDevice.Get(0), false);
+
     MobilityHelper mobility;
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(wifiApNode);      // AP
@@ -189,39 +189,7 @@ main(int argc, char* argv[])
     ApplicationContainer cameraApps = cameraHelper.Install(wifiCameraNode.Get(0));
     Ptr<IotCamera> camera = cameraApps.Get(0)->GetObject<IotCamera>();
 
-    /*std::vector<std::pair<uint32_t, double>> packetSizes = {
-        {100, 0.5},
-        {500, 0.3},
-        {1000, 0.2}
-    };
-    std::vector<std::pair<double, double>> interPacketTimes = {
-        {0.1, 0.4},
-        {0.5, 0.4},
-        {1.0, 0.2}
-    };
-
-    std::shared_ptr<PacketClassDistribution> 
-        packetClass1 = std::make_shared<PacketClassDistribution>(packetSizes, interPacketTimes);
-    
-    std::vector<std::pair<uint32_t, double>> packetSizes2 = {
-        {5000, 0.5},
-        {10000, 0.3},
-        {20000, 0.2}
-    };
-    std::vector<std::pair<double, double>> interPacketTimes2 = {
-        {0.2, 0.4},
-        {0.8, 0.4},
-        {1.0, 0.2}
-    };
-    
-    std::shared_ptr<PacketClassDistribution> 
-        packetClass2 = std::make_shared<PacketClassDistribution>(packetSizes2, interPacketTimes2);
-    std::shared_ptr<PacketClassBasic> packetClass1 = std::make_shared<PacketClassBasic>(
-        691, 1448, 744.381, 191.231, 0.00008, 2.019497, 0.05936, 0.077852);
-    camera->AddPacketClass(packetClass1);
-    camera->AddPacketClass(packetClass2);*/
-
-    LoadPacketClassFromFile(camera, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/packet_class_example.json");
+    LoadPacketClassFromFile(camera, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-basic.json");
     camera->TraceConnectWithoutContext("Rx", MakeCallback(&CameraRx));
     camera->TraceConnectWithoutContext("Tx", MakeCallback(&CameraTx));
     camera->SetStartTime(Seconds(0.1));
