@@ -10,26 +10,26 @@
                 "std-dev": 191.231
             },
             "inter-packet-times": {
-                "min": 0.008,
-                "max": 2019.497,
-                "mean": 59.936,
-                "std-dev": 77.852    
+                "min": 0.000008,
+                "max": 2.019497,
+                "mean": 0.059936,
+                "std-dev": 0.077852    
             }
         },
         {
             "id": 2,
             "type": "basic",
             "payload-size": {
-                "min": 949,
-                "max": 1514,
-                "mean": 1043.167,
+                "min": 883,
+                "max": 1448,
+                "mean": 977.167,
                 "std-dev": 230.660
             },
             "inter-packet-times": {
-                "min": 0.008,
-                "max": 2019.497,
-                "mean": 59.936,
-                "std-dev": 77.852    
+                "min": 5.046386,
+                "max": 21.891857,
+                "mean": 12.685215,
+                "std-dev": 7.26557    
             }
         },
         {

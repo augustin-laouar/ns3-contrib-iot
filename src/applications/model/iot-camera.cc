@@ -236,7 +236,7 @@ IotCamera::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass
     {
         Address clientAddress;
         socket->GetPeerName(clientAddress);
-        NS_LOG_INFO("Camera sent packet of " << bytesSent << " bytes to " << clientAddress);
+        NS_LOG_INFO("[CAMERA] Send video data. Packet class ID =  " << packetClass->GetId() << " | TCP data size = " << bytesSent << " bytes. | To : " << clientAddress);
         m_txTrace(packet);
     }
     else
