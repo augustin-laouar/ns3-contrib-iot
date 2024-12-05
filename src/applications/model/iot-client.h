@@ -74,7 +74,6 @@ private:
     
     /// Trace for received packets.
     TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;
-
     /// Trace for sent packets.
     TracedCallback<Ptr<const Packet>> m_txTrace;
 };

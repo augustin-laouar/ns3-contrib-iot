@@ -11,23 +11,54 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("IotBasicExample");
 
-void 
-CameraRx(Ptr<const Packet> packet, const Address& address) 
+
+void TraceCameraTxPacket(Ptr<const Packet> packet, uint16_t packetClassId)
 {
-    NS_LOG_INFO("Camera received a packet of " << packet->GetSize() << " bytes from " << InetSocketAddress::ConvertFrom(address).GetIpv4());
+    static std::ofstream csvFile("camera_tx_packets.csv", std::ios::out | std::ios::app);
+    static bool isHeaderWritten = false;
+
+    if (!csvFile.is_open())
+    {
+        NS_LOG_ERROR("TraceTxCameraPacket : Failed to open CSV file.");
+        return;
+    }
+
+    if (!isHeaderWritten)
+    {
+        csvFile << "Timestamp,PacketClassId,PacketSize\n";
+        isHeaderWritten = true;
+    }
+
+    double timestamp = Simulator::Now().GetSeconds();
+    uint32_t packetSize = packet->GetSize();
+
+    csvFile << timestamp << "," << packetClassId << "," << packetSize  << "\n";
 }
 
-void 
-CameraTx(Ptr<const Packet> packet) 
+
+void TraceRxCameraPacket(Ptr<const Packet> packet, const Address& from)
 {
-    NS_LOG_INFO("Camera sent a packet of " << packet->GetSize() << " bytes.");
+    static std::ofstream csvFile("camera_rx_packets.csv", std::ios::out | std::ios::app);
+    static bool isHeaderWritten = false;
+
+    if (!csvFile.is_open())
+    {
+        NS_LOG_ERROR("TraceRxCameraPacket : Failed to open CSV file.");
+        return;
+    }
+
+    if (!isHeaderWritten)
+    {
+        csvFile << "Timestamp,PacketSize,FromAddress\n";
+        isHeaderWritten = true;
+    }
+
+    double timestamp = Simulator::Now().GetSeconds();
+    uint32_t packetSize = packet->GetSize();
+
+    csvFile << timestamp << "," << packetSize << "," << from << "\n";
 }
 
-void 
-ClientRx(Ptr<const Packet> packet, const Address& address) 
-{
-    NS_LOG_INFO("Client received a packet of " << packet->GetSize() << " bytes from " << InetSocketAddress::ConvertFrom(address).GetIpv4());
-}
 
 void 
 LoadPacketClassFromFile(Ptr<IotCamera> camera, const std::string& fichierJson) 
@@ -122,7 +153,7 @@ LoadPacketClassFromFile(Ptr<IotCamera> camera, const std::string& fichierJson)
 int 
 main(int argc, char* argv[]) 
 {
-    double simTimeSec = 50.0;
+    double simTimeSec = 90.0;
     CommandLine cmd(__FILE__);
     cmd.AddValue("SimulationTime", "Length of simulation in seconds.", simTimeSec);
     cmd.Parse(argc, argv);
@@ -189,18 +220,16 @@ main(int argc, char* argv[])
     ApplicationContainer cameraApps = cameraHelper.Install(wifiCameraNode.Get(0));
     Ptr<IotCamera> camera = cameraApps.Get(0)->GetObject<IotCamera>();
 
-    LoadPacketClassFromFile(camera, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-basic.json");
-    camera->TraceConnectWithoutContext("Rx", MakeCallback(&CameraRx));
-    camera->TraceConnectWithoutContext("Tx", MakeCallback(&CameraTx));
+    LoadPacketClassFromFile(camera, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-rv.json");
     camera->SetStartTime(Seconds(0.1));
-    
+    camera->TraceConnectWithoutContext("Tx", MakeCallback(&TraceCameraTxPacket));
+
     double delay = 0;
     for (uint32_t i = 0; i < wifiStaNodes.GetN(); ++i) {
         IotClientHelper clientHelper(Address(cameraAddress), cameraPort);
         ApplicationContainer clientApps = clientHelper.Install(wifiStaNodes.Get(i));
         Ptr<IotClient> client = clientApps.Get(0)->GetObject<IotClient>();
 
-        client->TraceConnectWithoutContext("Rx", MakeCallback(&ClientRx));
         client->SetStartTime(Seconds(1.0 + delay));
 
         if (delay + 1.5 < simTimeSec)

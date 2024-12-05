@@ -1,21 +1,29 @@
 #ifndef IOT_CAMERA_H
 #define IOT_CAMERA_H
 
+#include <map>
+#include <string>
+#include <vector>
+#include <fstream>
 #include <ns3/address.h>
 #include <ns3/application.h>
 #include <ns3/event-id.h>
 #include <ns3/nstime.h>
 #include <ns3/ptr.h>
 #include <ns3/traced-callback.h>
-#include <map>
-#include <string>
-#include <vector>
 #include "packet-class.h"
 namespace ns3
 {
 
 class Socket;
 class Packet;
+
+enum class CameraState
+{
+    STOPPED,
+    NOT_STARTED,
+    STARTED
+};
 
 /**
  * \brief Iot Camera Application capable of handling multiple clients.
@@ -47,6 +55,12 @@ public:
      * \return The current state of the application in string format.
      */
     std::string GetStateString() const;
+
+    /**
+     * Returns the current state of the application.
+     * \return The current state of the application.
+     */
+    CameraState GetState() const;
 
     /**
      * Add a new PacketClass object to the camera.
@@ -104,34 +118,21 @@ private:
     void ReceivedDataCallback(Ptr<Socket> socket);
 
     /**
-     * Invoked when the socket has more buffer space available for transmission.
-     * \param socket Pointer to the socket.
-     * \param availableBufferSize The number of bytes available in the socket's
-     *                            transmission buffer.
-     */
-    void SendCallback(Ptr<Socket> socket, uint32_t availableBufferSize);
-    
-    /**
      * Send video data.
      * \param socket Pointer to the socket to send data.
      * \param packetClass Packet class associated.
      */
     void SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass);
 
-    /**
-     * Change the state of the server.
-     * \param state The new state.
-     */
-    void SwitchToState(const std::string& state);
-
     /// List of PacketClass objects (abstract or derived)
     std::vector<std::shared_ptr<PacketClass>> m_packetClasses;
+
     /// The listening socket for receiving connection requests from clients.
     Ptr<Socket> m_listeningSocket;
     /// Collection of accepted sockets.
     std::map<Ptr<Socket>, Address> m_clientSockets;
     /// The state of the application.
-    std::string m_state;
+    CameraState m_state;
 
     // ATTRIBUTES
     Address m_localAddress; ///< The local address to bind the socket to.
@@ -140,7 +141,7 @@ private:
     // TRACE SOURCES
     TracedCallback<Ptr<Socket>, const Address&> m_newConnectionTrace; ///< Trace for new connections.
     TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;      ///< Trace for received packets.
-    TracedCallback<Ptr<const Packet>> m_txTrace;                     ///< Trace for transmitted packets.
+    TracedCallback<Ptr<const Packet>, uint16_t> m_txTrace;            ///< Trace for transmitted packets.
 };
 
 } // namespace ns3
