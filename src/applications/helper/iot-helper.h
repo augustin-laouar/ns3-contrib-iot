@@ -1,5 +1,5 @@
-#ifndef TCP_HELPER_H
-#define TCP_HELPER_H
+#ifndef IOT_HELPER
+#define IOT_HELPER
 
 #include <ns3/application-helper.h>
 
@@ -22,19 +22,19 @@ public:
 
 /**
  * \ingroup applications
- * Helper to make it easier to instantiate a IotCamera on a set of nodes.
+ * Helper to make it easier to instantiate a IotPassiveApp on a set of nodes.
  */
-class IotCameraHelper : public ApplicationHelper {
+class IotPassiveAppHelper : public ApplicationHelper {
 public:
     /**
-     * Create a IotCameraHelper to make it easier to work with IotCamera
+     * Create a IotPassiveAppHelper to make it easier to work with IotPassiveApp
      * applications.
      * \param address The address on which the server will listen.
      * \param port The port on which the server will listen.
      */
-    IotCameraHelper(const Address& address, uint16_t port);
+    IotPassiveAppHelper(const Address& address, uint16_t port);
 };
 
 } // namespace ns3
 
-#endif /* TCP_HELPER_H */
+#endif /* IOT_HELPER */

@@ -63,7 +63,7 @@ void IotClient::StartApplication() {
             MakeCallback(&IotClient::ConnectionSucceededCallback, this),
             MakeCallback(&IotClient::ConnectionFailedCallback, this));
         m_socket->SetRecvCallback(MakeCallback(&IotClient::ReceivedDataCallback, this));
-        m_socket->SetSendCallback(MakeCallback(&IotClient::SendCallback, this));
+        m_socket->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());        
 
         if (Ipv4Address::IsMatchingType(m_remoteCameraAddress)) {
             InetSocketAddress remote = InetSocketAddress(Ipv4Address::ConvertFrom(m_remoteCameraAddress), m_remoteCameraPort);
@@ -84,8 +84,8 @@ void IotClient::StopApplication() {
 
     if (m_socket) {
         m_socket->Close();
-        m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
-        m_socket->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());
+        m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());        
+        m_socket->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());        
         m_socket = nullptr;
     }
 
@@ -96,13 +96,6 @@ void IotClient::StopApplication() {
 void IotClient::ConnectionSucceededCallback(Ptr<Socket> socket) {
     NS_LOG_FUNCTION(this << socket);
     NS_LOG_INFO("Connection to camera succeeded.");
-
-    // Send a request to watch stream
-    std::string message = "GET_STREAM";
-    Ptr<Packet> packet = Create<Packet>((uint8_t*)message.c_str(), message.length());
-    socket->Send(packet);
-    NS_LOG_INFO("Sent: " << message);
-    m_txTrace(packet);
 }
 
 void IotClient::ConnectionFailedCallback(Ptr<Socket> socket) {
@@ -125,10 +118,5 @@ void IotClient::ReceivedDataCallback(Ptr<Socket> socket) {
         m_rxTrace(packet, from);
     }
 }
-
-void IotClient::SendCallback(Ptr<Socket> socket, uint32_t availableBufferSize) {
-    NS_LOG_FUNCTION(this << socket << availableBufferSize);
-    NS_LOG_INFO("Buffer space available for sending: " << availableBufferSize << " bytes.");
-}
-
+        
 } // namespace ns3

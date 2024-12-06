@@ -40,7 +40,7 @@ main(int argc, char* argv[])
     Time::SetResolution(Time::NS);
     LogComponentEnableAll(LOG_PREFIX_TIME);
     LogComponentEnable("IotExample", LOG_INFO);
-    //LogComponentEnable("IotCamera", LOG_INFO);
+    //LogComponentEnable("IotPassiveApp", LOG_INFO);
     //LogComponentEnable("IotClient", LOG_INFO);
     //LogComponentEnable("ApWifiMac", LOG_LEVEL_ALL);
     //LogComponentEnable("StaWifiMac", LOG_LEVEL_ALL);
@@ -92,9 +92,9 @@ main(int argc, char* argv[])
     Ipv4Address cameraAddress = cameraInterface.GetAddress(0);
 
     uint16_t cameraPort = 8800;
-    IotCameraHelper cameraHelper(Address(cameraAddress), cameraPort);
+    IotPassiveAppHelper cameraHelper(Address(cameraAddress), cameraPort);
     ApplicationContainer cameraApps = cameraHelper.Install(wifiCameraNode.Get(0));
-    Ptr<IotCamera> camera = cameraApps.Get(0)->GetObject<IotCamera>();
+    Ptr<IotPassiveApp> camera = cameraApps.Get(0)->GetObject<IotPassiveApp>();
 
     std::vector<std::pair<uint32_t, double>> packetSizes = {
         {100, 0.5},

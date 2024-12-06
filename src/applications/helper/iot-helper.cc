@@ -13,10 +13,10 @@ IotClientHelper::IotClientHelper(const Address& address, uint16_t port)
     m_factory.Set("RemoteCameraPort", UintegerValue(port));
 }
 
-// IOT CAMERA HELPER /////////////////////////////////////////////////////////
+// IOT PASSIVE APP HELPER /////////////////////////////////////////////////////////
 
-IotCameraHelper::IotCameraHelper(const Address& address, uint16_t port)
-    : ApplicationHelper("ns3::IotCamera") 
+IotPassiveAppHelper::IotPassiveAppHelper(const Address& address, uint16_t port)
+    : ApplicationHelper("ns3::IotPassiveApp") 
 {
     m_factory.Set("LocalAddress", AddressValue(address));
     m_factory.Set("LocalPort", UintegerValue(port));

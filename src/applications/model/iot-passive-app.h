@@ -1,5 +1,5 @@
-#ifndef IOT_CAMERA_H
-#define IOT_CAMERA_H
+#ifndef IOT_PASSIVE_APP
+#define IOT_PASSIVE_APP
 
 #include <map>
 #include <string>
@@ -18,7 +18,7 @@ namespace ns3
 class Socket;
 class Packet;
 
-enum class CameraState
+enum class AppState
 {
     STOPPED,
     NOT_STARTED,
@@ -31,18 +31,18 @@ enum class CameraState
  * This application passively listens for incoming TCP connections and can handle
  * multiple clients simultaneously.
  */
-class IotCamera : public Application
+class IotPassiveApp : public Application
 {
 public:
     /**
      * Creates a new instance of camera application.
      */
-    IotCamera();
+    IotPassiveApp();
 
     /**
      * Default constructor.
      */
-    virtual ~IotCamera() = default;
+    virtual ~IotPassiveApp() = default;
 
     /**
      * Returns the object TypeId.
@@ -60,7 +60,7 @@ public:
      * Returns the current state of the application.
      * \return The current state of the application.
      */
-    CameraState GetState() const;
+    AppState GetState() const;
 
     /**
      * Add a new PacketClass object to the camera.
@@ -126,13 +126,13 @@ private:
 
     /// List of PacketClass objects (abstract or derived)
     std::vector<std::shared_ptr<PacketClass>> m_packetClasses;
-
+    std::map<std::shared_ptr<PacketClass>, EventId> m_packetClassEvents;
     /// The listening socket for receiving connection requests from clients.
     Ptr<Socket> m_listeningSocket;
     /// Collection of accepted sockets.
     std::map<Ptr<Socket>, Address> m_clientSockets;
     /// The state of the application.
-    CameraState m_state;
+    AppState m_state;
 
     // ATTRIBUTES
     Address m_localAddress; ///< The local address to bind the socket to.
@@ -146,4 +146,4 @@ private:
 
 } // namespace ns3
 
-#endif /* IOT_CAMERA_H */
+#endif /* IOT_PASSIVE_APP */

@@ -53,13 +53,6 @@ private:
      */
     void ReceivedDataCallback(Ptr<Socket> socket);
 
-    /**
-     * Called when the socket has available buffer space for sending.
-     * \param socket The socket.
-     * \param availableBufferSize The available buffer size.
-     */
-    void SendCallback(Ptr<Socket> socket, uint32_t availableBufferSize);
-
     /// The socket for sending and receiving data.
     Ptr<Socket> m_socket;
 

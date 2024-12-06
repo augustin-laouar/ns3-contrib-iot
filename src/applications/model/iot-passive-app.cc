@@ -1,4 +1,4 @@
-#include "iot-camera.h"
+#include "iot-passive-app.h"
 
 #include <ns3/log.h>
 #include <ns3/inet-socket-address.h>
@@ -9,48 +9,48 @@
 #include <ns3/uinteger.h>
 #include <random>
 
-NS_LOG_COMPONENT_DEFINE("IotCamera");
+NS_LOG_COMPONENT_DEFINE("IotPassiveApp");
 
 namespace ns3 {
 
-NS_OBJECT_ENSURE_REGISTERED(IotCamera);
+NS_OBJECT_ENSURE_REGISTERED(IotPassiveApp);
 
-IotCamera::IotCamera()
-    : m_listeningSocket(nullptr), m_state(CameraState::NOT_STARTED) 
+IotPassiveApp::IotPassiveApp()
+    : m_listeningSocket(nullptr), m_state(AppState::NOT_STARTED) 
 {
     NS_LOG_FUNCTION(this);
 }
 
 // static
-TypeId IotCamera::GetTypeId() 
+TypeId IotPassiveApp::GetTypeId() 
 {
-    static TypeId tid = TypeId("ns3::IotCamera")
+    static TypeId tid = TypeId("ns3::IotPassiveApp")
                             .SetParent<Application>()
-                            .AddConstructor<IotCamera>()
+                            .AddConstructor<IotPassiveApp>()
                             .AddAttribute("LocalAddress",
                                           "The local address to bind the socket to.",
                                           AddressValue(),
-                                          MakeAddressAccessor(&IotCamera::m_localAddress),
+                                          MakeAddressAccessor(&IotPassiveApp::m_localAddress),
                                           MakeAddressChecker())
                             .AddAttribute("LocalPort",
                                           "Port on which the camera listens.",
                                           UintegerValue(8800),
-                                          MakeUintegerAccessor(&IotCamera::m_localPort),
+                                          MakeUintegerAccessor(&IotPassiveApp::m_localPort),
                                           MakeUintegerChecker<uint16_t>())
                             .AddTraceSource("Tx",
                                             "A packet has been transmitted.",
-                                            MakeTraceSourceAccessor(&IotCamera::m_txTrace),
+                                            MakeTraceSourceAccessor(&IotPassiveApp::m_txTrace),
                                             "ns3::Packet::TracedCallback")
                             .AddTraceSource("Rx",
                                             "A packet has been received.",
-                                            MakeTraceSourceAccessor(&IotCamera::m_rxTrace),
+                                            MakeTraceSourceAccessor(&IotPassiveApp::m_rxTrace),
                                             "ns3::Packet::PacketAddressTracedCallback");
                             
     return tid;
 }
 
 void 
-IotCamera::DoDispose() 
+IotPassiveApp::DoDispose() 
 {
     NS_LOG_FUNCTION(this);
     StopApplication();
@@ -60,7 +60,7 @@ IotCamera::DoDispose()
 }
 
 void 
-IotCamera::StartApplication() 
+IotPassiveApp::StartApplication() 
 {
     NS_LOG_FUNCTION(this);
 
@@ -86,23 +86,23 @@ IotCamera::StartApplication()
 
         m_listeningSocket->Listen();
         m_listeningSocket->SetAcceptCallback(
-            MakeCallback(&IotCamera::ConnectionRequestCallback, this),
-            MakeCallback(&IotCamera::NewConnectionCreatedCallback, this));
+            MakeCallback(&IotPassiveApp::ConnectionRequestCallback, this),
+            MakeCallback(&IotPassiveApp::NewConnectionCreatedCallback, this));
         m_listeningSocket->SetCloseCallbacks(
-            MakeCallback(&IotCamera::ConnectionClosedCallback, this),
+            MakeCallback(&IotPassiveApp::ConnectionClosedCallback, this),
             MakeNullCallback<void, Ptr<Socket>>());
 
-        m_state = CameraState::STARTED;
+        m_state = AppState::STARTED;
         NS_LOG_INFO("Camera started, listening on port " << m_localPort);
     }
 }
 
 void 
-IotCamera::StopApplication() 
+IotPassiveApp::StopApplication() 
 {
     NS_LOG_FUNCTION(this);
 
-    m_state = CameraState::STOPPED;
+    m_state = AppState::STOPPED;
 
     if (m_listeningSocket) {
         m_listeningSocket->Close();
@@ -111,32 +111,38 @@ IotCamera::StopApplication()
         m_listeningSocket = nullptr;
     }
 
-    for (auto &entry : m_clientSockets) {
+    for (auto& entry : m_clientSockets) {
         entry.first->Close();
         entry.first->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
-        entry.first->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());
     }
     m_clientSockets.clear();
 
-    NS_LOG_INFO("Camera stopped.");
+    for (auto& entry : m_packetClassEvents) 
+    {
+        Simulator::Cancel(entry.second);
+    }
+    m_packetClassEvents.clear();
+
+    NS_LOG_INFO("IotPassiveApp stopped.");
 }
 
-CameraState 
-IotCamera::GetState() const 
+
+AppState 
+IotPassiveApp::GetState() const 
 {
     return m_state;
 }
 
 std::string 
-IotCamera::GetStateString() const
+IotPassiveApp::GetStateString() const
 {
     switch (m_state)
     {
-    case CameraState::STOPPED:
+    case AppState::STOPPED:
         return "STOPPED";
-    case CameraState::NOT_STARTED:
+    case AppState::NOT_STARTED:
         return "NOT_STARTED";
-    case CameraState::STARTED:
+    case AppState::STARTED:
         return "STARTED";
     default:
         return "UNKNOWN";
@@ -144,14 +150,14 @@ IotCamera::GetStateString() const
 }
 
 void
-IotCamera::AddPacketClass(std::shared_ptr<PacketClass> packetClass) 
+IotPassiveApp::AddPacketClass(std::shared_ptr<PacketClass> packetClass) 
 {
     NS_LOG_FUNCTION(this << packetClass);
     m_packetClasses.push_back(packetClass);
 }
 
 void 
-IotCamera::RemovePacketClass(std::shared_ptr<PacketClass> packetClass) 
+IotPassiveApp::RemovePacketClass(std::shared_ptr<PacketClass> packetClass) 
 {
     NS_LOG_FUNCTION(this << packetClass);
     auto it = std::find(m_packetClasses.begin(), m_packetClasses.end(), packetClass);
@@ -159,19 +165,19 @@ IotCamera::RemovePacketClass(std::shared_ptr<PacketClass> packetClass)
     if (it != m_packetClasses.end()) {
         m_packetClasses.erase(it);
     } else {
-        NS_LOG_WARN("IotCamera::RemovePacketClass : PacketClass object not found in the list.");
+        NS_LOG_WARN("IotPassiveApp::RemovePacketClass : PacketClass object not found in the list.");
     }
 }
 
 void 
-IotCamera::ClearPacketClasses() 
+IotPassiveApp::ClearPacketClasses() 
 {
     NS_LOG_FUNCTION(this);
     m_packetClasses.clear();
 }
 
 bool 
-IotCamera::ConnectionRequestCallback(Ptr<Socket> socket, const Address &address) 
+IotPassiveApp::ConnectionRequestCallback(Ptr<Socket> socket, const Address &address) 
 {
     NS_LOG_FUNCTION(this << socket << address);
     NS_LOG_INFO("Incoming connection request from " << address);
@@ -179,19 +185,26 @@ IotCamera::ConnectionRequestCallback(Ptr<Socket> socket, const Address &address)
 }
 
 void 
-IotCamera::NewConnectionCreatedCallback(Ptr<Socket> socket, const Address &address) 
+IotPassiveApp::NewConnectionCreatedCallback(Ptr<Socket> socket, const Address &address) 
 {
     NS_LOG_FUNCTION(this << socket << address);
 
     NS_LOG_INFO("New connection established with " << address);
     m_clientSockets[socket] = address;
 
-    socket->SetRecvCallback(MakeCallback(&IotCamera::ReceivedDataCallback, this));
+    socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
     socket->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());
+    
+    for (auto& packetClass : m_packetClasses) 
+    {
+        double interPacketInterval = packetClass->GetInterPacketTime();
+        EventId event = Simulator::Schedule(Seconds(interPacketInterval), &IotPassiveApp::SendData, this, socket, packetClass);
+        m_packetClassEvents[packetClass] = event;
+    }
 }
 
 void 
-IotCamera::ConnectionClosedCallback(Ptr<Socket> socket) 
+IotPassiveApp::ConnectionClosedCallback(Ptr<Socket> socket) 
 {
     NS_LOG_FUNCTION(this << socket);
 
@@ -199,58 +212,31 @@ IotCamera::ConnectionClosedCallback(Ptr<Socket> socket)
     if (it != m_clientSockets.end()) {
         NS_LOG_INFO("Connection with " << it->second << " closed.");
         m_clientSockets.erase(it);
+
+        for (auto& entry : m_packetClassEvents) 
+        {
+            Simulator::Cancel(entry.second);
+        }
+        m_packetClassEvents.clear();
     }
 }
 
 
 void 
-IotCamera::ReceivedDataCallback(Ptr<Socket> socket) 
-{
-    NS_LOG_FUNCTION(this << socket);
-
-    Ptr<Packet> packet;
-    Address from;
-
-    while ((packet = socket->RecvFrom(from))) 
-    {
-        if (packet->GetSize() == 0) 
-        {
-            break; // EOF
-        }
-
-        uint8_t *buffer = new uint8_t[packet->GetSize()];
-        packet->CopyData(buffer, packet->GetSize());
-        std::string data(reinterpret_cast<char*>(buffer), packet->GetSize());
-        delete[] buffer;
-
-        NS_LOG_INFO("Camera received " << packet->GetSize() << " bytes from " << from);
-
-        if (data == "GET_STREAM") 
-        {
-            NS_LOG_INFO("Camera start video stream");
-
-            for (const auto& packetClass : m_packetClasses) 
-            {
-                double interPacketInterval = packetClass->GetInterPacketTime();
-                Simulator::Schedule(Seconds(interPacketInterval), &IotCamera::SendData, this, socket, packetClass);
-            }
-        } else 
-        {
-            NS_LOG_WARN("Unknown data received: " << data);
-        }    
-    }
-}
-
-
-void
-IotCamera::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass)
+IotPassiveApp::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass)
 {
     NS_LOG_FUNCTION(this << socket << packetClass);
 
-    if (m_state == CameraState::STOPPED) 
+    if (m_state != AppState::STARTED) 
     {
-        NS_LOG_INFO("Camera is stopped. No more video data will be sent.");
-        return; 
+        NS_LOG_WARN("SendPacketForClass invoked, but the application is not in the STARTED state.");
+        return;
+    }
+
+    if (!packetClass)
+    {
+        NS_LOG_ERROR("SendPacketForClass received a null PacketClass pointer.");
+        return;
     }
 
     uint32_t packetSize = packetClass->GetPayloadSize();
@@ -263,7 +249,9 @@ IotCamera::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass
     {
         Address clientAddress;
         socket->GetPeerName(clientAddress);
-        NS_LOG_INFO("[CAMERA] Send video data. Packet class ID =  " << packetClass->GetId() << " | TCP data size = " << bytesSent << " bytes. | To : " << clientAddress);
+        NS_LOG_INFO("[IOT_PASSIVE_APP] Sent packet. Size: " << packetSize
+                      << " bytes, Class ID: " << packetClass->GetId()
+                      << ", To: " << clientAddress);
         m_txTrace(packet, packetClass->GetId());
     }
     else
@@ -271,9 +259,10 @@ IotCamera::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass
         NS_LOG_ERROR("Failed to send packet. Socket error: " << socket->GetErrno());
     }
 
-
-    Simulator::Schedule(Seconds(interPacketInterval), &IotCamera::SendData, this, socket, packetClass);
+    EventId nextEvent = Simulator::Schedule(Seconds(interPacketInterval), &IotPassiveApp::SendData, this, socket, packetClass);
+    m_packetClassEvents[packetClass] = nextEvent;
 }
+
 
 
 } // namespace ns3

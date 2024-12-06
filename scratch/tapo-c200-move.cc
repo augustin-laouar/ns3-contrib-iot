@@ -61,7 +61,7 @@ void TraceRxCameraPacket(Ptr<const Packet> packet, const Address& from)
 
 
 void 
-LoadPacketClassFromFile(Ptr<IotCamera> camera, const std::string& fichierJson) 
+LoadPacketClassFromFile(Ptr<IotPassiveApp> camera, const std::string& fichierJson) 
 {
     std::ifstream file(fichierJson);
     if (!file.is_open()) {
@@ -153,7 +153,7 @@ LoadPacketClassFromFile(Ptr<IotCamera> camera, const std::string& fichierJson)
 int 
 main(int argc, char* argv[]) 
 {
-    double simTimeSec = 90.0;
+    double simTimeSec = 10.0;
     CommandLine cmd(__FILE__);
     cmd.AddValue("SimulationTime", "Length of simulation in seconds.", simTimeSec);
     cmd.Parse(argc, argv);
@@ -161,7 +161,7 @@ main(int argc, char* argv[])
     Time::SetResolution(Time::NS);
     LogComponentEnableAll(LOG_PREFIX_TIME);
     //LogComponentEnable("IotBasicExample", LOG_INFO);
-    LogComponentEnable("IotCamera", LOG_INFO);
+    LogComponentEnable("IotPassiveApp", LOG_INFO);
     //LogComponentEnable("IotClient", LOG_INFO);
     //LogComponentEnable("ApWifiMac", LOG_LEVEL_ALL);
     //LogComponentEnable("StaWifiMac", LOG_LEVEL_ALL);
@@ -177,6 +177,7 @@ main(int argc, char* argv[])
     YansWifiChannelHelper channel = YansWifiChannelHelper::Default();
     YansWifiPhyHelper phy;
     phy.SetChannel(channel.Create());
+    phy.SetPcapDataLinkType (YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
 
     WifiHelper wifi;
     wifi.SetStandard(WIFI_STANDARD_80211n);
@@ -194,7 +195,7 @@ main(int argc, char* argv[])
     NetDeviceContainer cameraDevice = wifi.Install(phy, mac, wifiCameraNode);
 
     //enable packet capture
-    //phy.EnablePcap("move-basic", cameraDevice.Get(0), false);
+    phy.EnablePcap("move-basic", cameraDevice.Get(0), false);
 
     MobilityHelper mobility;
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -202,23 +203,22 @@ main(int argc, char* argv[])
     mobility.Install(wifiStaNodes);   // Clients
     mobility.Install(wifiCameraNode); // Camera
 
-    InternetStackHelper stack;
-    stack.Install(wifiApNode);
-    stack.Install(wifiStaNodes);
-    stack.Install(wifiCameraNode);
+    InternetStackHelper internet;
+    internet.Install(wifiApNode);
+    internet.Install(wifiStaNodes);
+    internet.Install(wifiCameraNode);
 
-    Ipv4AddressHelper address;
-    address.SetBase("10.1.1.0", "255.255.255.0");
-    Ipv4InterfaceContainer apInterface = address.Assign(apDevice);
-    Ipv4InterfaceContainer staInterfaces = address.Assign(staDevices);
-    Ipv4InterfaceContainer cameraInterface = address.Assign(cameraDevice);
+    Ipv4AddressHelper ipv4Adress;
+    ipv4Adress.SetBase("10.1.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer apInterface = ipv4Adress.Assign(apDevice);
+    Ipv4InterfaceContainer staInterfaces = ipv4Adress.Assign(staDevices);
+    Ipv4InterfaceContainer cameraInterface = ipv4Adress.Assign(cameraDevice);
 
     Ipv4Address cameraAddress = cameraInterface.GetAddress(0);
-
     uint16_t cameraPort = 8800;
-    IotCameraHelper cameraHelper(Address(cameraAddress), cameraPort);
+    IotPassiveAppHelper cameraHelper(Address(cameraAddress), cameraPort);
     ApplicationContainer cameraApps = cameraHelper.Install(wifiCameraNode.Get(0));
-    Ptr<IotCamera> camera = cameraApps.Get(0)->GetObject<IotCamera>();
+    Ptr<IotPassiveApp> camera = cameraApps.Get(0)->GetObject<IotPassiveApp>();
 
     LoadPacketClassFromFile(camera, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-rv.json");
     camera->SetStartTime(Seconds(0.1));
