@@ -61,7 +61,7 @@ void TraceRxCameraPacket(Ptr<const Packet> packet, const Address& from)
 
 
 void 
-LoadPacketClassFromFile(Ptr<IotPassiveApp> camera, const std::string& fichierJson) 
+LoadPacketClassFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJson) 
 {
     std::ifstream file(fichierJson);
     if (!file.is_open()) {
@@ -82,6 +82,7 @@ LoadPacketClassFromFile(Ptr<IotPassiveApp> camera, const std::string& fichierJso
         return;
     }
 
+    std::vector<std::shared_ptr<PacketClass>> trafficProfile;
     for (const auto& packetClass : j["packet-classes"]) {
         if (!packetClass.contains("type") || !packetClass["type"].is_string()) {
             NS_LOG_WARN("Warning: Each packet class must have a 'type' field.");
@@ -118,7 +119,7 @@ LoadPacketClassFromFile(Ptr<IotPassiveApp> camera, const std::string& fichierJso
             }
 
             std::shared_ptr<PacketClassDistribution> distributionClass = std::make_shared<PacketClassDistribution>(id, payloadSizes, interPacketTimes);
-            camera->AddPacketClass(distributionClass);
+            trafficProfile.push_back(distributionClass);
             NS_LOG_INFO("Distribution packet class added successfully.");
 
         } else if (type == "basic") {
@@ -141,19 +142,20 @@ LoadPacketClassFromFile(Ptr<IotPassiveApp> camera, const std::string& fichierJso
 
             std::shared_ptr<PacketClassBasic> basicClass = std::make_shared<PacketClassBasic>(
                 id, minSize, maxSize, meanSize, stdDevSize, minTime, maxTime, meanTime, stdDevTime);
-            camera->AddPacketClass(basicClass);
+            trafficProfile.push_back(basicClass);
             NS_LOG_INFO("Basic packet class added successfully.");
 
         } else {
             NS_LOG_WARN("Warning: Unknown type '" << type << "'. Skipping this entry.");
         }
-    }
+    }  
+    iotApp->SetTrafficProfile(trafficProfile);
 }
 
 int 
 main(int argc, char* argv[]) 
 {
-    double simTimeSec = 10.0;
+    double simTimeSec = 1.0;
     CommandLine cmd(__FILE__);
     cmd.AddValue("SimulationTime", "Length of simulation in seconds.", simTimeSec);
     cmd.Parse(argc, argv);
@@ -162,7 +164,7 @@ main(int argc, char* argv[])
     LogComponentEnableAll(LOG_PREFIX_TIME);
     //LogComponentEnable("IotBasicExample", LOG_INFO);
     LogComponentEnable("IotPassiveApp", LOG_INFO);
-    //LogComponentEnable("IotClient", LOG_INFO);
+    LogComponentEnable("IotClient", LOG_INFO);
     //LogComponentEnable("ApWifiMac", LOG_LEVEL_ALL);
     //LogComponentEnable("StaWifiMac", LOG_LEVEL_ALL);
     //LogComponentEnable("WifiMac", LOG_LEVEL_ALL);
@@ -170,7 +172,7 @@ main(int argc, char* argv[])
     NodeContainer wifiApNode;
     wifiApNode.Create(1); // AP node
     NodeContainer wifiStaNodes;
-    wifiStaNodes.Create(1); // Client nodes
+    wifiStaNodes.Create(2); // Client nodes
     NodeContainer wifiCameraNode;
     wifiCameraNode.Create(1); // Camera node
 
@@ -218,26 +220,34 @@ main(int argc, char* argv[])
     uint16_t cameraPort = 8800;
     IotPassiveAppHelper cameraHelper(Address(cameraAddress), cameraPort);
     ApplicationContainer cameraApps = cameraHelper.Install(wifiCameraNode.Get(0));
-    Ptr<IotPassiveApp> camera = cameraApps.Get(0)->GetObject<IotPassiveApp>();
+    Ptr<IotPassiveApp> iotApp = cameraApps.Get(0)->GetObject<IotPassiveApp>();
 
-    LoadPacketClassFromFile(camera, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-rv.json");
-    camera->SetStartTime(Seconds(0.1));
-    camera->TraceConnectWithoutContext("Tx", MakeCallback(&TraceCameraTxPacket));
+    LoadPacketClassFromFile(iotApp, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-rv.json");
+    iotApp->SetStartTime(Seconds(0.0));
+    iotApp->TraceConnectWithoutContext("Tx", MakeCallback(&TraceCameraTxPacket));
 
-    double delay = 0;
+    double delay = 0.2;
     for (uint32_t i = 0; i < wifiStaNodes.GetN(); ++i) {
         IotClientHelper clientHelper(Address(cameraAddress), cameraPort);
         ApplicationContainer clientApps = clientHelper.Install(wifiStaNodes.Get(i));
         Ptr<IotClient> client = clientApps.Get(0)->GetObject<IotClient>();
 
-        client->SetStartTime(Seconds(1.0 + delay));
+        client->SetStartTime(Seconds(0.1 + delay));
 
-        if (delay + 1.5 < simTimeSec)
+        if (delay + 0.2 < simTimeSec)
         {
-            delay += 0.5;
+            delay += 0.1;
         }
+        
+        if (i == 0)
+        {
+            clientApps.Stop(Seconds(simTimeSec - 0.5));
+        }
+        else 
+        {
+            clientApps.Stop(Seconds(simTimeSec));
 
-        clientApps.Stop(Seconds(simTimeSec));
+        }
     }
 
     cameraApps.Stop(Seconds(simTimeSec));

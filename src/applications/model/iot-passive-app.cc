@@ -8,6 +8,7 @@
 #include <ns3/simulator.h>
 #include <ns3/uinteger.h>
 #include <random>
+#include <ns3/pointer.h>
 
 NS_LOG_COMPONENT_DEFINE("IotPassiveApp");
 
@@ -21,7 +22,6 @@ IotPassiveApp::IotPassiveApp()
     NS_LOG_FUNCTION(this);
 }
 
-// static
 TypeId IotPassiveApp::GetTypeId() 
 {
     static TypeId tid = TypeId("ns3::IotPassiveApp")
@@ -33,7 +33,7 @@ TypeId IotPassiveApp::GetTypeId()
                                           MakeAddressAccessor(&IotPassiveApp::m_localAddress),
                                           MakeAddressChecker())
                             .AddAttribute("LocalPort",
-                                          "Port on which the camera listens.",
+                                          "Port on which the application listens.",
                                           UintegerValue(8800),
                                           MakeUintegerAccessor(&IotPassiveApp::m_localPort),
                                           MakeUintegerChecker<uint16_t>())
@@ -49,13 +49,14 @@ TypeId IotPassiveApp::GetTypeId()
     return tid;
 }
 
+
 void 
 IotPassiveApp::DoDispose() 
 {
     NS_LOG_FUNCTION(this);
     StopApplication();
     m_clientSockets.clear();
-    m_packetClasses.clear();
+    m_trafficProfile.clear();
     Application::DoDispose();
 }
 
@@ -117,11 +118,15 @@ IotPassiveApp::StopApplication()
     }
     m_clientSockets.clear();
 
-    for (auto& entry : m_packetClassEvents) 
+    for (auto& entry : m_trafficProfileEvents) 
     {
-        Simulator::Cancel(entry.second);
+        for (auto& event : entry.second) 
+        {
+            Simulator::Cancel(event);
+        }
     }
-    m_packetClassEvents.clear();
+    m_trafficProfileEvents.clear();
+
 
     NS_LOG_INFO("IotPassiveApp stopped.");
 }
@@ -149,32 +154,26 @@ IotPassiveApp::GetStateString() const
     }
 }
 
-void
-IotPassiveApp::AddPacketClass(std::shared_ptr<PacketClass> packetClass) 
-{
-    NS_LOG_FUNCTION(this << packetClass);
-    m_packetClasses.push_back(packetClass);
-}
-
 void 
-IotPassiveApp::RemovePacketClass(std::shared_ptr<PacketClass> packetClass) 
-{
-    NS_LOG_FUNCTION(this << packetClass);
-    auto it = std::find(m_packetClasses.begin(), m_packetClasses.end(), packetClass);
-
-    if (it != m_packetClasses.end()) {
-        m_packetClasses.erase(it);
-    } else {
-        NS_LOG_WARN("IotPassiveApp::RemovePacketClass : PacketClass object not found in the list.");
-    }
-}
-
-void 
-IotPassiveApp::ClearPacketClasses() 
+IotPassiveApp::SetTrafficProfile(const std::vector<std::shared_ptr<PacketClass>>& trafficProfile)
 {
     NS_LOG_FUNCTION(this);
-    m_packetClasses.clear();
+
+    for (auto& entry : m_trafficProfileEvents) 
+    {
+        for (auto& event : entry.second) 
+        {
+            Simulator::Cancel(event);
+        }
+    }
+    m_trafficProfileEvents.clear();
+
+    
+    m_trafficProfile = trafficProfile;
+
+    NS_LOG_INFO("Traffic profile configured with " << trafficProfile.size() << " PacketClass objects.");
 }
+
 
 bool 
 IotPassiveApp::ConnectionRequestCallback(Ptr<Socket> socket, const Address &address) 
@@ -195,11 +194,12 @@ IotPassiveApp::NewConnectionCreatedCallback(Ptr<Socket> socket, const Address &a
     socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
     socket->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());
     
-    for (auto& packetClass : m_packetClasses) 
+    for (auto& packetClass : m_trafficProfile) 
     {
         double interPacketInterval = packetClass->GetInterPacketTime();
         EventId event = Simulator::Schedule(Seconds(interPacketInterval), &IotPassiveApp::SendData, this, socket, packetClass);
-        m_packetClassEvents[packetClass] = event;
+        m_trafficProfileEvents[socket].push_back(event);
+
     }
 }
 
@@ -208,16 +208,21 @@ IotPassiveApp::ConnectionClosedCallback(Ptr<Socket> socket)
 {
     NS_LOG_FUNCTION(this << socket);
 
-    auto it = m_clientSockets.find(socket);
-    if (it != m_clientSockets.end()) {
-        NS_LOG_INFO("Connection with " << it->second << " closed.");
-        m_clientSockets.erase(it);
+    auto socketIt = m_clientSockets.find(socket);
+    if (socketIt != m_clientSockets.end()) {
+        NS_LOG_INFO("Connection with " << socketIt->second << " closed.");
+        m_clientSockets.erase(socketIt);
 
-        for (auto& entry : m_packetClassEvents) 
+        auto eventIt = m_trafficProfileEvents.find(socket);
+        if (eventIt != m_trafficProfileEvents.end()) 
         {
-            Simulator::Cancel(entry.second);
+            for (auto& event : eventIt->second) 
+            {
+                Simulator::Cancel(event);
+            }
+            m_trafficProfileEvents.erase(eventIt); 
         }
-        m_packetClassEvents.clear();
+
     }
 }
 
@@ -260,7 +265,7 @@ IotPassiveApp::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetC
     }
 
     EventId nextEvent = Simulator::Schedule(Seconds(interPacketInterval), &IotPassiveApp::SendData, this, socket, packetClass);
-    m_packetClassEvents[packetClass] = nextEvent;
+    m_trafficProfileEvents[socket].push_back(nextEvent);
 }
 
 

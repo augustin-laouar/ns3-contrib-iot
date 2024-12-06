@@ -3,13 +3,15 @@
 
 #include <ns3/application-helper.h>
 
-namespace ns3 {
+namespace ns3 
+{
 
 /**
  * \ingroup applications
  * Helper to make it easier to instantiate a IotClient on a set of nodes.
  */
-class IotClientHelper : public ApplicationHelper {
+class IotClientHelper : public ApplicationHelper 
+{
 public:
     /**
      * Create a IotClientHelper to make it easier to work with IotClient
@@ -33,6 +35,7 @@ public:
      * \param port The port on which the server will listen.
      */
     IotPassiveAppHelper(const Address& address, uint16_t port);
+
 };
 
 } // namespace ns3

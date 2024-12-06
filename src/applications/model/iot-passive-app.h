@@ -63,21 +63,12 @@ public:
     AppState GetState() const;
 
     /**
-     * Add a new PacketClass object to the camera.
-     * \param packetClass The PacketClass object to add.
+     * Set the traffic profile using a list of PacketClass objects.
+     * This function replaces any existing packet classes with the provided list.
+     * 
+     * \param packetClasses A vector of shared pointers to PacketClass objects.
      */
-    void AddPacketClass(std::shared_ptr<PacketClass> packetClass);
-
-    /**
-     * Remove a new PacketClass object from the camera.
-     * \param packetClass The PacketClass object to remove.
-     */
-    void RemovePacketClass(std::shared_ptr<PacketClass> packetClass);
-
-    /**
-     * Clear all PacketClass objects.
-     */
-    void ClearPacketClasses();
+    void SetTrafficProfile(const std::vector<std::shared_ptr<PacketClass>>& trafficProfile);
 
 protected:
     void DoDispose() override;
@@ -85,7 +76,6 @@ protected:
 private:
     void StartApplication() override;
     void StopApplication() override;
-
     // SOCKET CALLBACK METHODS
 
     /**
@@ -112,12 +102,6 @@ private:
     void ConnectionClosedCallback(Ptr<Socket> socket);
 
     /**
-     * Invoked when data is received from a client.
-     * \param socket Pointer to the socket where the data is received.
-     */
-    void ReceivedDataCallback(Ptr<Socket> socket);
-
-    /**
      * Send video data.
      * \param socket Pointer to the socket to send data.
      * \param packetClass Packet class associated.
@@ -125,8 +109,9 @@ private:
     void SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass);
 
     /// List of PacketClass objects (abstract or derived)
-    std::vector<std::shared_ptr<PacketClass>> m_packetClasses;
-    std::map<std::shared_ptr<PacketClass>, EventId> m_packetClassEvents;
+    std::vector<std::shared_ptr<PacketClass>> m_trafficProfile;
+
+    std::map<Ptr<Socket>, std::vector<EventId>> m_trafficProfileEvents;
     /// The listening socket for receiving connection requests from clients.
     Ptr<Socket> m_listeningSocket;
     /// Collection of accepted sockets.
