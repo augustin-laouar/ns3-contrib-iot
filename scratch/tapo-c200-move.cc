@@ -138,7 +138,7 @@ LoadSubFlowFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJson)
             double max = payloadSize["max"].get<double>();
             double mean = payloadSize["mean"].get<double>();
             double stdDev = payloadSize["std-dev"].get<double>();
-            payloadSizeGenerator = std::make_shared<RandomGeneratorRv>(min, max, mean, stdDev);
+            payloadSizeGenerator = std::make_shared<RandomGeneratorUniform>(min, max, mean, stdDev);
         }
         else if (payloadSize["type"] == "dist") 
         {
@@ -187,7 +187,7 @@ LoadSubFlowFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJson)
             double max = interPacketTimes["max"].get<double>();
             double mean = interPacketTimes["mean"].get<double>();
             double stdDev = interPacketTimes["std-dev"].get<double>();
-            interPacketTimesGenerator = std::make_shared<RandomGeneratorRv>(min, max, mean, stdDev);
+            interPacketTimesGenerator = std::make_shared<RandomGeneratorUniform>(min, max, mean, stdDev);
         }
         else if (interPacketTimes["type"] == "dist") 
         {

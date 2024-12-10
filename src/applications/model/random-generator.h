@@ -25,18 +25,18 @@ public:
  * \ingroup applications
  * Simple generator using basic statistical values (min, max, mean, stdDev).
  */
-class RandomGeneratorRv : public RandomGenerator 
+class RandomGeneratorUniform : public RandomGenerator 
 {
 public:
 
-    RandomGeneratorRv(double min, double max, double mean, double stdDev);
+    RandomGeneratorUniform(double min, double max);
 
-    virtual ~RandomGeneratorRv() = default;
+    virtual ~RandomGeneratorUniform() = default;
 
     double GetRandom() const override;
 
 private:
-    double m_min, m_max, m_mean, m_stdDev;
+    double m_min, m_max;
 };
 
 /**

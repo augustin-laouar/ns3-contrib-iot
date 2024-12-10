@@ -3,17 +3,15 @@
 namespace ns3 
 {
 
-RandomGeneratorRv::RandomGeneratorRv(double min, double max, double mean, double stdDev)
-    : m_min(min), m_max(max), m_mean(mean), m_stdDev(stdDev)
+RandomGeneratorUniform::RandomGeneratorUniform(double min, double max)
+    : m_min(min), m_max(max)
 {
 }
 
 double
-RandomGeneratorRv::GetRandom() const
+RandomGeneratorUniform::GetRandom() const
 {
-    double random = m_mean + ((rand() / (double)RAND_MAX) - 0.5) * 2 * m_stdDev;
-    if (random < m_min) return m_min;
-    if (random > m_max) return m_max;
+    double random = m_min + (rand() / (double)RAND_MAX) * (m_max - m_min);
     return random;
 }
 

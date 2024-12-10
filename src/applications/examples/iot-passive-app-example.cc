@@ -54,8 +54,8 @@ LoadTapoC200TraficProfile(Ptr<IotPassiveApp> iotApp)
     std::shared_ptr<RandomGenerator> interPacketTimesGenerator;
     std::shared_ptr<SubFlow> subFlow;
 
-    std::shared_ptr<RandomGenerator> psGen1 = std::make_shared<RandomGeneratorRv>(500, 1448, 782, 241);
-    std::shared_ptr<RandomGenerator> iptGen1 = std::make_shared<RandomGeneratorRv>(0.01, 1, 0.1, 0.1);
+    std::shared_ptr<RandomGenerator> psGen1 = std::make_shared<RandomGeneratorNormal>(500, 1448, 782, 241);
+    std::shared_ptr<RandomGenerator> iptGen1 = std::make_shared<RandomGeneratorNormal>(0.01, 1, 0.1, 0.1);
     subFlow = std::make_shared<SubFlow>(1, psGen1, iptGen1);
     trafficProfile.push_back(subFlow);
 
