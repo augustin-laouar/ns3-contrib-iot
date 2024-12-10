@@ -51,13 +51,26 @@ void
 LoadTapoC200TraficProfile(Ptr<IotPassiveApp> iotApp)
 {
     std::vector<std::shared_ptr<SubFlow>> trafficProfile;
-    std::shared_ptr<RandomGenerator> interPacketTimesGenerator;
-    std::shared_ptr<SubFlow> subFlow;
 
-    std::shared_ptr<RandomGenerator> psGen1 = std::make_shared<RandomGeneratorNormal>(500, 1448, 782, 241);
-    std::shared_ptr<RandomGenerator> iptGen1 = std::make_shared<RandomGeneratorNormal>(0.01, 1, 0.1, 0.1);
-    subFlow = std::make_shared<SubFlow>(1, psGen1, iptGen1);
-    trafficProfile.push_back(subFlow);
+    std::shared_ptr<RandomGenerator> payloadSizeGen1 = std::make_shared<RandomGeneratorNormal>(691, 1448, 744.381, 191.231);
+    std::shared_ptr<RandomGenerator> interPacketTimeGen1 = std::make_shared<RandomGeneratorNormal>(0.000008, 2.02, 0.059936, 0.077852);
+    std::shared_ptr<SubFlow> subFlow1 = std::make_shared<SubFlow>(1, payloadSizeGen1, interPacketTimeGen1);
+    trafficProfile.push_back(subFlow1);
+
+    std::shared_ptr<RandomGenerator> payloadSizeGen2 = std::make_shared<RandomGeneratorNormal>(883, 1448, 977.167, 230.66);
+    std::shared_ptr<RandomGenerator> interPacketTimeGen2 = std::make_shared<RandomGeneratorUniform>(5.046386, 21.891857);
+    std::shared_ptr<SubFlow> subFlow2 = std::make_shared<SubFlow>(2, payloadSizeGen2, interPacketTimeGen2);
+    trafficProfile.push_back(subFlow2);
+
+    std::shared_ptr<RandomGenerator> payloadSizeGen3 = std::make_shared<RandomGeneratorNormal>(2004, 202720, 7761.412, 11299.521);
+    std::shared_ptr<RandomGenerator> interPacketTimeGen3 = std::make_shared<RandomGeneratorNormal>(0.000006, 0.252874, 0.065435, 0.021381);
+    std::shared_ptr<SubFlow> subFlow3 = std::make_shared<SubFlow>(3, payloadSizeGen3, interPacketTimeGen3);
+    trafficProfile.push_back(subFlow3);
+
+    std::shared_ptr<RandomGenerator> payloadSizeGen4 = std::make_shared<RandomGeneratorNormal>(5, 1420, 730.692, 451.447);
+    std::shared_ptr<RandomGenerator> interPacketTimeGen4 = std::make_shared<RandomGeneratorNormal>(0.087334, 5.042865, 0.941867, 0.927757);
+    std::shared_ptr<SubFlow> subFlow4 = std::make_shared<SubFlow>(4, payloadSizeGen4, interPacketTimeGen4);
+    trafficProfile.push_back(subFlow4);
 
     iotApp->SetTrafficProfile(trafficProfile);
 

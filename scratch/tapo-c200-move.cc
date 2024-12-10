@@ -25,7 +25,7 @@ void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, ui
 
     if (!isHeaderWritten)
     {
-        csvFile << "Timestamp,ClientAddress,SubFlowId,PacketSize\n";
+        csvFile << "Timestamp,ClientIpAddress,ClientPort,SubFlowId,PacketSize\n";
         isHeaderWritten = true;
     }
 
@@ -37,7 +37,7 @@ void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, ui
         InetSocketAddress inetSocketAddress = InetSocketAddress::ConvertFrom(clientAddress);
         uint16_t port = inetSocketAddress.GetPort();
         Ipv4Address ipv4Address = inetSocketAddress.GetIpv4();
-        csvFile << timestamp << "," << ipv4Address << ":" << port << "," << subFlowId << "," << packetSize  << "\n";
+        csvFile << timestamp << "," << ipv4Address << "," << port << "," << subFlowId << "," << packetSize  << "\n";
     }
     else
     {
@@ -126,19 +126,16 @@ LoadSubFlowFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJson)
             continue;
         }
         //payloadsize
-        if (payloadSize["type"] == "rv") 
+        if (payloadSize["type"] == "uniform") 
         {
-            if (!(payloadSize.contains("min") && payloadSize.contains("max")
-                && payloadSize.contains("mean") && payloadSize.contains("std-dev"))) 
+            if (!(payloadSize.contains("min") && payloadSize.contains("max"))) 
             {
                 NS_LOG_WARN("Warning: Invalid format for payloadSize. Skipping entry.");
                 continue;
             }
             double min = payloadSize["min"].get<double>();
             double max = payloadSize["max"].get<double>();
-            double mean = payloadSize["mean"].get<double>();
-            double stdDev = payloadSize["std-dev"].get<double>();
-            payloadSizeGenerator = std::make_shared<RandomGeneratorUniform>(min, max, mean, stdDev);
+            payloadSizeGenerator = std::make_shared<RandomGeneratorUniform>(min, max);
         }
         else if (payloadSize["type"] == "dist") 
         {
@@ -175,19 +172,16 @@ LoadSubFlowFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJson)
         }
         
         //interPacketTimes
-        if (interPacketTimes["type"] == "rv") 
+        if (interPacketTimes["type"] == "uniform") 
         {
-            if (!(interPacketTimes.contains("min") && interPacketTimes.contains("max")
-                && interPacketTimes.contains("mean") && interPacketTimes.contains("std-dev"))) 
+            if (!(interPacketTimes.contains("min") && interPacketTimes.contains("max"))) 
             {
                 NS_LOG_WARN("Warning: Invalid format for interPacketTimes. Skipping entry.");
                 continue;
             }
             double min = interPacketTimes["min"].get<double>();
             double max = interPacketTimes["max"].get<double>();
-            double mean = interPacketTimes["mean"].get<double>();
-            double stdDev = interPacketTimes["std-dev"].get<double>();
-            interPacketTimesGenerator = std::make_shared<RandomGeneratorUniform>(min, max, mean, stdDev);
+            interPacketTimesGenerator = std::make_shared<RandomGeneratorUniform>(min, max);
         }
         else if (interPacketTimes["type"] == "dist") 
         {
@@ -230,7 +224,7 @@ LoadSubFlowFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJson)
 int 
 main(int argc, char* argv[]) 
 {
-    double simTimeSec = 1.0;
+    double simTimeSec = 90;
     CommandLine cmd(__FILE__);
     cmd.AddValue("SimulationTime", "Length of simulation in seconds.", simTimeSec);
     cmd.Parse(argc, argv);
@@ -248,7 +242,7 @@ main(int argc, char* argv[])
     NodeContainer wifiApNode;
     wifiApNode.Create(1); // AP node
     NodeContainer wifiStaNodes;
-    wifiStaNodes.Create(2); // Client nodes
+    wifiStaNodes.Create(1); // Client nodes
     NodeContainer wifiCameraNode;
     wifiCameraNode.Create(1); // Camera node
 
@@ -273,7 +267,7 @@ main(int argc, char* argv[])
     NetDeviceContainer cameraDevice = wifi.Install(phy, mac, wifiCameraNode);
 
     //enable packet capture
-    phy.EnablePcap("move-basic", cameraDevice.Get(0), false);
+    //phy.EnablePcap("move-basic", cameraDevice.Get(0), false);
 
     MobilityHelper mobility;
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -298,32 +292,25 @@ main(int argc, char* argv[])
     ApplicationContainer cameraApps = cameraHelper.Install(wifiCameraNode.Get(0));
     Ptr<IotPassiveApp> iotApp = cameraApps.Get(0)->GetObject<IotPassiveApp>();
 
-    LoadSubFlowFromFile(iotApp, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-rv.json");
+    LoadSubFlowFromFile(iotApp, "./scratch/tapo-c200-move.json");
     iotApp->SetStartTime(Seconds(0.0));
     iotApp->TraceConnectWithoutContext("Tx", MakeCallback(&TraceIotTxPacket));
 
-    double delay = 0.2;
+    double delay = 0;
     for (uint32_t i = 0; i < wifiStaNodes.GetN(); ++i) {
         IotClientHelper clientHelper(Address(cameraAddress), cameraPort);
         ApplicationContainer clientApps = clientHelper.Install(wifiStaNodes.Get(i));
         Ptr<IotClient> client = clientApps.Get(0)->GetObject<IotClient>();
 
-        client->SetStartTime(Seconds(0.1 + delay));
+        client->SetStartTime(Seconds(1 + delay));
 
-        if (delay + 0.2 < simTimeSec)
+        if (delay + 6 < simTimeSec)
         {
-            delay += 0.1;
+            delay += 5;
         }
-        
-        if (i == 0)
-        {
-            clientApps.Stop(Seconds(simTimeSec - 0.5));
-        }
-        else 
-        {
-            clientApps.Stop(Seconds(simTimeSec));
 
-        }
+        int decrease = delay <= 20 ? 20 - delay : 20;
+        clientApps.Stop(Seconds(simTimeSec - decrease));
     }
 
     cameraApps.Stop(Seconds(simTimeSec));
