@@ -10,7 +10,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("IotPassiveAppExample");
 
 
-void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, uint16_t packetClassId)
+void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, uint16_t subFlowId)
 {
     if (InetSocketAddress::IsMatchingType(clientAddress))
     {
@@ -50,15 +50,14 @@ void TraceIotRxPacket(Ptr<const Packet> packet, const Address& from)
 void
 LoadTapoC200TraficProfile(Ptr<IotPassiveApp> iotApp)
 {
-    std::vector<std::shared_ptr<PacketClass>> trafficProfile;
-    std::shared_ptr<RandomGenerator> payloadSizeGenerator;
+    std::vector<std::shared_ptr<SubFlow>> trafficProfile;
     std::shared_ptr<RandomGenerator> interPacketTimesGenerator;
-    std::shared_ptr<PacketClass> packetClass;
+    std::shared_ptr<SubFlow> subFlow;
 
-    payloadSizeGenerator = std::make_shared<RandomGeneratorRv>(500, 1448, 782, 241);
-    interPacketTimesGenerator = std::make_shared<RandomGeneratorRv>(0.01, 1, 0.1, 0.1);
-    packetClass = std::make_shared<PacketClass>(1, payloadSizeGenerator, interPacketTimesGenerator);
-    trafficProfile.push_back(packetClass);
+    std::shared_ptr<RandomGenerator> psGen1 = std::make_shared<RandomGeneratorRv>(500, 1448, 782, 241);
+    std::shared_ptr<RandomGenerator> iptGen1 = std::make_shared<RandomGeneratorRv>(0.01, 1, 0.1, 0.1);
+    subFlow = std::make_shared<SubFlow>(1, psGen1, iptGen1);
+    trafficProfile.push_back(subFlow);
 
     iotApp->SetTrafficProfile(trafficProfile);
 

@@ -12,7 +12,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("IotBasicExample");
 
 
-void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, uint16_t packetClassId)
+void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, uint16_t subFlowId)
 {
     static std::ofstream csvFile("camera_tx_packets.csv", std::ios::out | std::ios::app);
     static bool isHeaderWritten = false;
@@ -25,7 +25,7 @@ void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, ui
 
     if (!isHeaderWritten)
     {
-        csvFile << "Timestamp,ClientAddress,PacketClassId,PacketSize\n";
+        csvFile << "Timestamp,ClientAddress,SubFlowId,PacketSize\n";
         isHeaderWritten = true;
     }
 
@@ -37,11 +37,11 @@ void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, ui
         InetSocketAddress inetSocketAddress = InetSocketAddress::ConvertFrom(clientAddress);
         uint16_t port = inetSocketAddress.GetPort();
         Ipv4Address ipv4Address = inetSocketAddress.GetIpv4();
-        csvFile << timestamp << "," << ipv4Address << ":" << port << "," << packetClassId << "," << packetSize  << "\n";
+        csvFile << timestamp << "," << ipv4Address << ":" << port << "," << subFlowId << "," << packetSize  << "\n";
     }
     else
     {
-        csvFile << timestamp << "," << clientAddress << "," << packetClassId << "," << packetSize  << "\n";
+        csvFile << timestamp << "," << clientAddress << "," << subFlowId << "," << packetSize  << "\n";
     }
     
 
@@ -73,7 +73,7 @@ void TraceIotRxPacket(Ptr<const Packet> packet, const Address& from)
 
 
 void 
-LoadPacketClassFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJson) 
+LoadSubFlowFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJson) 
 {
     std::ifstream file(fichierJson);
     if (!file.is_open()) {
@@ -89,13 +89,13 @@ LoadPacketClassFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJso
         return;
     }
 
-    if (!j.contains("packet-classes") || !j["packet-classes"].is_array()) {
-        NS_LOG_ERROR("Error: JSON file must contain a 'packet-classes' array.");
+    if (!j.contains("sub-flows") || !j["sub-flows"].is_array()) {
+        NS_LOG_ERROR("Error: JSON file must contain a 'sub-flows' array.");
         return;
     }
 
-    std::vector<std::shared_ptr<PacketClass>> trafficProfile;
-    for (const auto& entry : j["packet-classes"]) {
+    std::vector<std::shared_ptr<SubFlow>> trafficProfile;
+    for (const auto& entry : j["sub-flows"]) {
         if (!entry.contains("payload-size")) {
             NS_LOG_WARN("Warning: Each packet class must have a 'payload-size' field.");
             continue;
@@ -113,7 +113,7 @@ LoadPacketClassFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJso
         auto interPacketTimes = entry["inter-packet-times"];
         std::shared_ptr<RandomGenerator> payloadSizeGenerator;
         std::shared_ptr<RandomGenerator> interPacketTimesGenerator;
-        std::shared_ptr<PacketClass> packetClass;
+        std::shared_ptr<SubFlow> subFlow;
 
         if (!payloadSize.contains("type") || !payloadSize["type"].is_string()) 
         {
@@ -221,8 +221,8 @@ LoadPacketClassFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJso
         {
             NS_LOG_WARN("Warning: Unknown type '" << interPacketTimes["type"] << "'. Skipping this entry.");
         }
-        packetClass = std::make_shared<PacketClass>(id, payloadSizeGenerator, interPacketTimesGenerator);
-        trafficProfile.push_back(packetClass);
+        subFlow = std::make_shared<SubFlow>(id, payloadSizeGenerator, interPacketTimesGenerator);
+        trafficProfile.push_back(subFlow);
     }
     iotApp->SetTrafficProfile(trafficProfile);
 }
@@ -298,7 +298,7 @@ main(int argc, char* argv[])
     ApplicationContainer cameraApps = cameraHelper.Install(wifiCameraNode.Get(0));
     Ptr<IotPassiveApp> iotApp = cameraApps.Get(0)->GetObject<IotPassiveApp>();
 
-    LoadPacketClassFromFile(iotApp, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-rv.json");
+    LoadSubFlowFromFile(iotApp, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-rv.json");
     iotApp->SetStartTime(Seconds(0.0));
     iotApp->TraceConnectWithoutContext("Tx", MakeCallback(&TraceIotTxPacket));
 

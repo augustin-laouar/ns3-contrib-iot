@@ -155,7 +155,7 @@ IotPassiveApp::GetStateString() const
 }
 
 void 
-IotPassiveApp::SetTrafficProfile(const std::vector<std::shared_ptr<PacketClass>>& trafficProfile)
+IotPassiveApp::SetTrafficProfile(const std::vector<std::shared_ptr<SubFlow>>& trafficProfile)
 {
     NS_LOG_FUNCTION(this);
 
@@ -171,7 +171,7 @@ IotPassiveApp::SetTrafficProfile(const std::vector<std::shared_ptr<PacketClass>>
     
     m_trafficProfile = trafficProfile;
 
-    NS_LOG_INFO("Traffic profile configured with " << trafficProfile.size() << " PacketClass objects.");
+    NS_LOG_INFO("Traffic profile configured with " << trafficProfile.size() << " SubFlow objects.");
 }
 
 
@@ -224,10 +224,10 @@ IotPassiveApp::NewConnectionCreatedCallback(Ptr<Socket> socket, const Address &a
     socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
     socket->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());
     
-    for (auto& packetClass : m_trafficProfile) 
+    for (auto& subFlow : m_trafficProfile) 
     {
-        double interPacketInterval = packetClass->GetInterPacketTime();
-        EventId event = Simulator::Schedule(Seconds(interPacketInterval), &IotPassiveApp::SendData, this, socket, packetClass);
+        double interPacketInterval = subFlow->GetInterPacketTime();
+        EventId event = Simulator::Schedule(Seconds(interPacketInterval), &IotPassiveApp::SendData, this, socket, subFlow);
         m_trafficProfileEvents[socket].push_back(event);
 
     }
@@ -273,9 +273,9 @@ IotPassiveApp::ConnectionClosedCallback(Ptr<Socket> socket)
 
 
 void 
-IotPassiveApp::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass)
+IotPassiveApp::SendData(Ptr<Socket> socket, std::shared_ptr<SubFlow> subFlow)
 {
-    NS_LOG_FUNCTION(this << socket << packetClass);
+    NS_LOG_FUNCTION(this << socket << subFlow);
 
     if (m_state != AppState::STARTED) 
     {
@@ -283,14 +283,14 @@ IotPassiveApp::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetC
         return;
     }
 
-    if (!packetClass)
+    if (!subFlow)
     {
-        NS_LOG_ERROR("SendPacketForClass received a null PacketClass pointer.");
+        NS_LOG_ERROR("SendPacketForClass received a null SubFlow pointer.");
         return;
     }
 
-    uint32_t packetSize = packetClass->GetPayloadSize();
-    double interPacketInterval = packetClass->GetInterPacketTime();
+    uint32_t packetSize = subFlow->GetPayloadSize();
+    double interPacketInterval = subFlow->GetInterPacketTime();
 
     Ptr<Packet> packet = Create<Packet>(packetSize);
     int bytesSent = socket->Send(packet);
@@ -319,14 +319,14 @@ IotPassiveApp::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetC
                       << " bytes to " << ipv6Address
                       << " port " << port);
         }
-        m_txTrace(packet, clientAddress, packetClass->GetId());
+        m_txTrace(packet, clientAddress, subFlow->GetId());
     }
     else
     {
         NS_LOG_ERROR("Failed to send packet. Socket error: " << socket->GetErrno());
     }
 
-    EventId nextEvent = Simulator::Schedule(Seconds(interPacketInterval), &IotPassiveApp::SendData, this, socket, packetClass);
+    EventId nextEvent = Simulator::Schedule(Seconds(interPacketInterval), &IotPassiveApp::SendData, this, socket, subFlow);
     m_trafficProfileEvents[socket].push_back(nextEvent);
 }
 

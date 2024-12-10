@@ -10,16 +10,16 @@ namespace ns3
  * \ingroup applications
  * Modelize a packet class.
  */
-class PacketClass 
+class SubFlow 
 {
 public:
 
-    PacketClass(
+    SubFlow(
         uint16_t id,
         std::shared_ptr<RandomGenerator> payloadSizeGenerator, 
         std::shared_ptr<RandomGenerator> interPacketTimeGenerator);
 
-    virtual ~PacketClass() = default;
+    virtual ~SubFlow() = default;
 
     //bytes
     uint32_t GetPayloadSize() const;

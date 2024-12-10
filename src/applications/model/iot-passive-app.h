@@ -11,7 +11,7 @@
 #include <ns3/nstime.h>
 #include <ns3/ptr.h>
 #include <ns3/traced-callback.h>
-#include "packet-class.h"
+#include "sub-flow.h"
 namespace ns3
 {
 
@@ -63,12 +63,12 @@ public:
     AppState GetState() const;
 
     /**
-     * Set the traffic profile using a list of PacketClass objects.
+     * Set the traffic profile using a list of SubFlow objects.
      * This function replaces any existing packet classes with the provided list.
      * 
-     * \param packetClasses A vector of shared pointers to PacketClass objects.
+     * \param subFlowes A vector of shared pointers to SubFlow objects.
      */
-    void SetTrafficProfile(const std::vector<std::shared_ptr<PacketClass>>& trafficProfile);
+    void SetTrafficProfile(const std::vector<std::shared_ptr<SubFlow>>& trafficProfile);
 
 protected:
     void DoDispose() override;
@@ -104,12 +104,12 @@ private:
     /**
      * Send video data.
      * \param socket Pointer to the socket to send data.
-     * \param packetClass Packet class associated.
+     * \param subFlow Packet class associated.
      */
-    void SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetClass);
+    void SendData(Ptr<Socket> socket, std::shared_ptr<SubFlow> subFlow);
 
-    /// List of PacketClass objects (abstract or derived)
-    std::vector<std::shared_ptr<PacketClass>> m_trafficProfile;
+    /// List of SubFlow objects (abstract or derived)
+    std::vector<std::shared_ptr<SubFlow>> m_trafficProfile;
 
     std::map<Ptr<Socket>, std::vector<EventId>> m_trafficProfileEvents;
     /// The listening socket for receiving connection requests from clients.

@@ -27,7 +27,7 @@ build_lib(
     model/udp-trace-client.cc
     model/iot-passive-app.cc
     model/iot-client.cc
-    model/packet-class.cc
+    model/sub-flow.cc
     model/random-generator.cc
   HEADER_FILES
     helper/bulk-send-helper.h
@@ -56,7 +56,7 @@ build_lib(
     model/udp-trace-client.h
     model/iot-passive-app.h
     model/iot-client.h
-    model/packet-class.h
+    model/sub-flow.h
     model/random-generator.h
   LIBRARIES_TO_LINK ${libinternet}
   TEST_SOURCES

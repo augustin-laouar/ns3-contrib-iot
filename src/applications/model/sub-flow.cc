@@ -1,9 +1,9 @@
-#include "packet-class.h"
+#include "sub-flow.h"
 
 namespace ns3 
 {
 
-PacketClass::PacketClass(
+SubFlow::SubFlow(
         uint16_t id,
         std::shared_ptr<RandomGenerator> payloadSizeGenerator, 
         std::shared_ptr<RandomGenerator> interPacketTimeGenerator):
@@ -14,19 +14,19 @@ PacketClass::PacketClass(
 }
 
 uint16_t
-PacketClass::GetId() 
+SubFlow::GetId() 
 {
     return m_id;
 }
 
 uint32_t
-PacketClass::GetPayloadSize() const
+SubFlow::GetPayloadSize() const
 {
     return m_payloadSizeGenerator->GetRandom();
 }
 
 double
-PacketClass::GetInterPacketTime() const
+SubFlow::GetInterPacketTime() const
 {
     return m_interPacketTimeGenerator->GetRandom();
 }

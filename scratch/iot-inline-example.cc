@@ -107,8 +107,8 @@ main(int argc, char* argv[])
         {1.0, 0.2}
     };
 
-    std::shared_ptr<PacketClassDistribution> 
-        packetClass1 = std::make_shared<PacketClassDistribution>(1, packetSizes, interPacketTimes);
+    std::shared_ptr<SubFlowDistribution> 
+        subFlow1 = std::make_shared<SubFlowDistribution>(1, packetSizes, interPacketTimes);
     
     std::vector<std::pair<uint32_t, double>> packetSizes2 = {
         {5000, 0.5},
@@ -121,14 +121,14 @@ main(int argc, char* argv[])
         {1.0, 0.2}
     };
     
-    std::shared_ptr<PacketClassDistribution> 
-        packetClass2 = std::make_shared<PacketClassDistribution>(2, packetSizes2, interPacketTimes2);
+    std::shared_ptr<SubFlowDistribution> 
+        subFlow2 = std::make_shared<SubFlowDistribution>(2, packetSizes2, interPacketTimes2);
         
-    /*std::shared_ptr<PacketClassBasic> packetClass1 = std::make_shared<PacketClassBasic>(
+    /*std::shared_ptr<SubFlowBasic> subFlow1 = std::make_shared<SubFlowBasic>(
         691, 1448, 744.381, 191.231, 0.00008, 2.019497, 0.05936, 0.077852);*/
-    std::vector<std::shared_ptr<PacketClass>> trafficProfile;
-    trafficProfile.push_back(packetClass1);
-    trafficProfile.push_back(packetClass2);
+    std::vector<std::shared_ptr<SubFlow>> trafficProfile;
+    trafficProfile.push_back(subFlow1);
+    trafficProfile.push_back(subFlow2);
     camera->SetTrafficProfile(trafficProfile);
     
     camera->TraceConnectWithoutContext("Rx", MakeCallback(&CameraRx));
