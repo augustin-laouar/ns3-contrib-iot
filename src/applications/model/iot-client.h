@@ -14,7 +14,7 @@ class Packet;
  * \ingroup applications
  * Simple client application for sending and receiving data.
  *
- * This application establishes a connection to a remote IOT camera,
+ * This application establishes a connection to a remote IOT application,
  * sends data, and handles incoming data.
  */
 class IotClient : public Application {
@@ -56,11 +56,11 @@ private:
     /// The socket for sending and receiving data.
     Ptr<Socket> m_socket;
 
-    /// Remote camera address.
-    Address m_remoteCameraAddress;
+    /// Remote address.
+    Address m_remoteAddress;
 
-    /// Remote camera port.
-    uint16_t m_remoteCameraPort;
+    /// Remote port.
+    uint16_t m_remotePort;
 
     /// Buffer size for sending data.
     uint32_t m_sendBufferSize;

@@ -1,15 +1,21 @@
 {
     "packet-classes": [
-        {
-            "type": "distribution",
-            "payload-sizes": [
-                {"size": 1000, "prabability": 0.1},
-                {"size": 2000, "prabability": 0.9}
-            ],
-            "inter-packet-times": [
-                {"time": 0.1, "prabability": 0.1},
-                {"time": 1, "prabability": 0.9}
-            ]
+        {  
+            "id": 1,
+            "payload-sizes": {
+                "type": "distribution",
+                "distribution" : [
+                    {"value": 1000, "prabability": 0.1},
+                    {"value": 2000, "prabability": 0.9}
+                ]
+            } ,
+            "inter-packet-times": {
+                "type": "distribution",
+                "distribution": [
+                    {"value": 0.1, "prabability": 0.1},
+                    {"value": 1, "prabability": 0.9}
+                ]
+            }
         }
     ]
 }

@@ -14,7 +14,7 @@ namespace ns3 {
 NS_OBJECT_ENSURE_REGISTERED(IotClient);
 
 IotClient::IotClient()
-    : m_socket(nullptr), m_remoteCameraPort(0), m_sendBufferSize(1024) {
+    : m_socket(nullptr), m_remotePort(0), m_sendBufferSize(1024) {
     NS_LOG_FUNCTION(this);
 }
 
@@ -22,15 +22,15 @@ TypeId IotClient::GetTypeId() {
     static TypeId tid = TypeId("ns3::IotClient")
                             .SetParent<Application>()
                             .AddConstructor<IotClient>()
-                            .AddAttribute("RemoteCameraAddress",
-                                          "The address of the remote camera.",
+                            .AddAttribute("RemoteAddress",
+                                          "The address of the remote application.",
                                           AddressValue(),
-                                          MakeAddressAccessor(&IotClient::m_remoteCameraAddress),
+                                          MakeAddressAccessor(&IotClient::m_remoteAddress),
                                           MakeAddressChecker())
-                            .AddAttribute("RemoteCameraPort",
-                                          "The port of the remote camera.",
+                            .AddAttribute("RemotePort",
+                                          "The port of the remote application.",
                                           UintegerValue(8080),
-                                          MakeUintegerAccessor(&IotClient::m_remoteCameraPort),
+                                          MakeUintegerAccessor(&IotClient::m_remotePort),
                                           MakeUintegerChecker<uint16_t>())
                             .AddAttribute("SendBufferSize",
                                           "The size of the buffer for sending data.",
@@ -65,17 +65,17 @@ void IotClient::StartApplication() {
         m_socket->SetRecvCallback(MakeCallback(&IotClient::ReceivedDataCallback, this));
         m_socket->SetSendCallback(MakeNullCallback<void, Ptr<Socket>, uint32_t>());        
 
-        if (Ipv4Address::IsMatchingType(m_remoteCameraAddress)) {
-            InetSocketAddress remote = InetSocketAddress(Ipv4Address::ConvertFrom(m_remoteCameraAddress), m_remoteCameraPort);
+        if (Ipv4Address::IsMatchingType(m_remoteAddress)) {
+            InetSocketAddress remote = InetSocketAddress(Ipv4Address::ConvertFrom(m_remoteAddress), m_remotePort);
             m_socket->Connect(remote);
-        } else if (Ipv6Address::IsMatchingType(m_remoteCameraAddress)) {
-            Inet6SocketAddress remote = Inet6SocketAddress(Ipv6Address::ConvertFrom(m_remoteCameraAddress), m_remoteCameraPort);
+            NS_LOG_INFO("Client started, Connecting to " << remote.GetIpv4() << " port " << m_remotePort);
+        } else if (Ipv6Address::IsMatchingType(m_remoteAddress)) {
+            Inet6SocketAddress remote = Inet6SocketAddress(Ipv6Address::ConvertFrom(m_remoteAddress), m_remotePort);
             m_socket->Connect(remote);
+            NS_LOG_INFO("Client started, Connecting to " << remote.GetIpv6() << " port " << m_remotePort);
         } else {
             NS_FATAL_ERROR("Unsupported address type.");
         }
-
-        NS_LOG_INFO("Client started and connecting to " << m_remoteCameraAddress);
     }
 }
 
@@ -95,12 +95,12 @@ void IotClient::StopApplication() {
 
 void IotClient::ConnectionSucceededCallback(Ptr<Socket> socket) {
     NS_LOG_FUNCTION(this << socket);
-    NS_LOG_INFO("Connection to camera succeeded.");
+    NS_LOG_INFO("Connection to remote IoT application succeeded.");
 }
 
 void IotClient::ConnectionFailedCallback(Ptr<Socket> socket) {
     NS_LOG_FUNCTION(this << socket);
-    NS_LOG_ERROR("Connection to camera failed.");
+    NS_LOG_ERROR("Connection to remote IoT application failed.");
 }
 
 void IotClient::ReceivedDataCallback(Ptr<Socket> socket) {
@@ -110,11 +110,30 @@ void IotClient::ReceivedDataCallback(Ptr<Socket> socket) {
     Address from;
 
     while ((packet = socket->RecvFrom(from))) {
-        if (packet->GetSize() == 0) {
+        uint32_t packetSize = packet->GetSize();
+        if (packetSize == 0) {
             break; // EOF
         }
+        if (InetSocketAddress::IsMatchingType(from))
+        {
+            InetSocketAddress inetSocketAddress = InetSocketAddress::ConvertFrom(from);
+            Ipv4Address ipv4Address = inetSocketAddress.GetIpv4();
+            uint16_t port = inetSocketAddress.GetPort();
 
-        NS_LOG_INFO("Received " << packet->GetSize() << " bytes from " << from);
+            NS_LOG_INFO("Received " << packetSize
+                      << " bytes from " << ipv4Address
+                      << " port " << port);
+        }
+        else if (Ipv6Address::IsMatchingType(from))
+        {
+            const Inet6SocketAddress inetSocket6Address = Inet6SocketAddress::ConvertFrom(from);
+            Ipv6Address ipv6Address = inetSocket6Address.GetIpv6();
+            uint16_t port = inetSocket6Address.GetPort();
+            
+            NS_LOG_INFO("Received " << packetSize
+                      << " bytes from " << ipv6Address
+                      << " port " << port);
+        }
         m_rxTrace(packet, from);
     }
 }

@@ -12,7 +12,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("IotBasicExample");
 
 
-void TraceCameraTxPacket(Ptr<const Packet> packet, uint16_t packetClassId)
+void TraceCameraTxPacket(Ptr<const Packet> packet, const Address& clientAddress, uint16_t packetClassId)
 {
     static std::ofstream csvFile("camera_tx_packets.csv", std::ios::out | std::ios::app);
     static bool isHeaderWritten = false;
@@ -25,14 +25,26 @@ void TraceCameraTxPacket(Ptr<const Packet> packet, uint16_t packetClassId)
 
     if (!isHeaderWritten)
     {
-        csvFile << "Timestamp,PacketClassId,PacketSize\n";
+        csvFile << "Timestamp,ClientAddress,PacketClassId,PacketSize\n";
         isHeaderWritten = true;
     }
 
+
     double timestamp = Simulator::Now().GetSeconds();
     uint32_t packetSize = packet->GetSize();
+    if (InetSocketAddress::IsMatchingType(clientAddress))
+    {
+        InetSocketAddress inetSocketAddress = InetSocketAddress::ConvertFrom(clientAddress);
+        uint16_t port = inetSocketAddress.GetPort();
+        Ipv4Address ipv4Address = inetSocketAddress.GetIpv4();
+        csvFile << timestamp << "," << ipv4Address << ":" << port << "," << packetClassId << "," << packetSize  << "\n";
+    }
+    else
+    {
+        csvFile << timestamp << "," << clientAddress << "," << packetClassId << "," << packetSize  << "\n";
+    }
+    
 
-    csvFile << timestamp << "," << packetClassId << "," << packetSize  << "\n";
 }
 
 
@@ -83,72 +95,135 @@ LoadPacketClassFromFile(Ptr<IotPassiveApp> iotApp, const std::string& fichierJso
     }
 
     std::vector<std::shared_ptr<PacketClass>> trafficProfile;
-    for (const auto& packetClass : j["packet-classes"]) {
-        if (!packetClass.contains("type") || !packetClass["type"].is_string()) {
-            NS_LOG_WARN("Warning: Each packet class must have a 'type' field.");
+    for (const auto& entry : j["packet-classes"]) {
+        if (!entry.contains("payload-size")) {
+            NS_LOG_WARN("Warning: Each packet class must have a 'payload-size' field.");
             continue;
         }
-        if (!packetClass.contains("id") || !packetClass["id"].is_number_integer()) {
+        if (!entry.contains("inter-packet-times")) {
+            NS_LOG_WARN("Warning: Each packet class must have a 'inter-packet-times' field.");
+            continue;
+        }
+        if (!entry.contains("id") || !entry["id"].is_number_integer()) {
             NS_LOG_WARN("Warning: Each packet class must have an 'id' field.");
             continue;
         }
-        std::string type = packetClass["type"];
-        uint16_t id = packetClass["id"];
-        if (type == "distribution") {
-            if (!packetClass.contains("payload-sizes") || !packetClass.contains("inter-packet-times")) {
-                NS_LOG_WARN("Warning: 'distribution' type must contain 'payload-sizes' and 'inter-packet-times'.");
-                continue;
-            }
+        uint16_t id = entry["id"];
+        auto payloadSize = entry["payload-size"];
+        auto interPacketTimes = entry["inter-packet-times"];
+        std::shared_ptr<RandomGenerator> payloadSizeGenerator;
+        std::shared_ptr<RandomGenerator> interPacketTimesGenerator;
+        std::shared_ptr<PacketClass> packetClass;
 
-            std::vector<std::pair<uint32_t, double>> payloadSizes;
-            for (const auto& size : packetClass["payload-sizes"]) {
-                if (size.contains("size") && size.contains("prabability")) {
-                    payloadSizes.emplace_back(size["size"].get<uint32_t>(), size["prabability"].get<double>());
-                } else {
-                    NS_LOG_WARN("Warning: Invalid format for 'payload-sizes'. Skipping entry.");
-                }
-            }
-
-            std::vector<std::pair<double, double>> interPacketTimes;
-            for (const auto& time : packetClass["inter-packet-times"]) {
-                if (time.contains("time") && time.contains("prabability")) {
-                    interPacketTimes.emplace_back(time["time"].get<double>(), time["prabability"].get<double>());
-                } else {
-                    NS_LOG_WARN("Warning: Invalid format for 'inter-packet-times'. Skipping entry.");
-                }
-            }
-
-            std::shared_ptr<PacketClassDistribution> distributionClass = std::make_shared<PacketClassDistribution>(id, payloadSizes, interPacketTimes);
-            trafficProfile.push_back(distributionClass);
-            NS_LOG_INFO("Distribution packet class added successfully.");
-
-        } else if (type == "basic") {
-            if (!packetClass.contains("payload-size") || !packetClass.contains("inter-packet-times")) {
-                NS_LOG_WARN("Warning: 'basic' type must contain 'payload-size' and 'inter-packet-times'.");
-                continue;
-            }
-
-            auto payloadSize = packetClass["payload-size"];
-            double minSize = payloadSize["min"];
-            double maxSize = payloadSize["max"];
-            double meanSize = payloadSize["mean"];
-            double stdDevSize = payloadSize["std-dev"];
-
-            auto interPacketTimes = packetClass["inter-packet-times"];
-            double minTime = interPacketTimes["min"];
-            double maxTime = interPacketTimes["max"];
-            double meanTime = interPacketTimes["mean"];
-            double stdDevTime = interPacketTimes["std-dev"];
-
-            std::shared_ptr<PacketClassBasic> basicClass = std::make_shared<PacketClassBasic>(
-                id, minSize, maxSize, meanSize, stdDevSize, minTime, maxTime, meanTime, stdDevTime);
-            trafficProfile.push_back(basicClass);
-            NS_LOG_INFO("Basic packet class added successfully.");
-
-        } else {
-            NS_LOG_WARN("Warning: Unknown type '" << type << "'. Skipping this entry.");
+        if (!payloadSize.contains("type") || !payloadSize["type"].is_string()) 
+        {
+            NS_LOG_WARN("Warning: payloadSize object must have a 'type' field.");
+            continue;
         }
-    }  
+        if (!interPacketTimes.contains("type") || !interPacketTimes["type"].is_string()) 
+        {
+            NS_LOG_WARN("Warning: interPacketTimes object must have a 'type' field.");
+            continue;
+        }
+        //payloadsize
+        if (payloadSize["type"] == "rv") 
+        {
+            if (!(payloadSize.contains("min") && payloadSize.contains("max")
+                && payloadSize.contains("mean") && payloadSize.contains("std-dev"))) 
+            {
+                NS_LOG_WARN("Warning: Invalid format for payloadSize. Skipping entry.");
+                continue;
+            }
+            double min = payloadSize["min"].get<double>();
+            double max = payloadSize["max"].get<double>();
+            double mean = payloadSize["mean"].get<double>();
+            double stdDev = payloadSize["std-dev"].get<double>();
+            payloadSizeGenerator = std::make_shared<RandomGeneratorRv>(min, max, mean, stdDev);
+        }
+        else if (payloadSize["type"] == "dist") 
+        {
+            std::vector<std::pair<double, double>> distribution;
+            for (const auto& value : payloadSize["distribution"]) 
+            {
+                if (!(value.contains("value") && value.contains("prabability")))
+                {
+                    NS_LOG_WARN("Warning: Invalid format for 'distribution'. Skipping entry.");
+                    continue;
+                } 
+                distribution.emplace_back(value["value"].get<double>(), value["prabability"].get<double>());
+            }
+            payloadSizeGenerator = std::make_shared<RandomGeneratorDist>(distribution);
+
+        }
+        else if (payloadSize["type"] == "normal") 
+        {
+            if (!(payloadSize.contains("min") && payloadSize.contains("max")
+                && payloadSize.contains("mean") && payloadSize.contains("std-dev"))) 
+            {
+                NS_LOG_WARN("Warning: Invalid format for payloadSize. Skipping entry.");
+                continue;
+            }
+            double min = payloadSize["min"].get<double>();
+            double max = payloadSize["max"].get<double>();
+            double mean = payloadSize["mean"].get<double>();
+            double stdDev = payloadSize["std-dev"].get<double>();
+            payloadSizeGenerator = std::make_shared<RandomGeneratorNormal>(min, max, mean, stdDev);
+        }
+        else 
+        {
+            NS_LOG_WARN("Warning: Unknown type '" << payloadSize["type"] << "'. Skipping this entry.");
+        }
+        
+        //interPacketTimes
+        if (interPacketTimes["type"] == "rv") 
+        {
+            if (!(interPacketTimes.contains("min") && interPacketTimes.contains("max")
+                && interPacketTimes.contains("mean") && interPacketTimes.contains("std-dev"))) 
+            {
+                NS_LOG_WARN("Warning: Invalid format for interPacketTimes. Skipping entry.");
+                continue;
+            }
+            double min = interPacketTimes["min"].get<double>();
+            double max = interPacketTimes["max"].get<double>();
+            double mean = interPacketTimes["mean"].get<double>();
+            double stdDev = interPacketTimes["std-dev"].get<double>();
+            interPacketTimesGenerator = std::make_shared<RandomGeneratorRv>(min, max, mean, stdDev);
+        }
+        else if (interPacketTimes["type"] == "dist") 
+        {
+            std::vector<std::pair<double, double>> distribution;
+            for (const auto& value : interPacketTimes["distribution"]) {
+                if (!(value.contains("value") && value.contains("prabability"))) 
+                {
+                    NS_LOG_WARN("Warning: Invalid format for 'distribution'. Skipping entry.");
+                    continue;
+                } 
+                distribution.emplace_back(value["value"].get<double>(), value["prabability"].get<double>());
+            }
+            interPacketTimesGenerator = std::make_shared<RandomGeneratorDist>(distribution);
+
+        }
+        else if (interPacketTimes["type"] == "normal") 
+        {
+            if (!(interPacketTimes.contains("min") && interPacketTimes.contains("max")
+                && interPacketTimes.contains("mean") && interPacketTimes.contains("std-dev"))) 
+            {
+                NS_LOG_WARN("Warning: Invalid format for interPacketTimes. Skipping entry.");
+                continue;
+            }
+            double min = interPacketTimes["min"].get<double>();
+            double max = interPacketTimes["max"].get<double>();
+            double mean = interPacketTimes["mean"].get<double>();
+            double stdDev = interPacketTimes["std-dev"].get<double>();
+            interPacketTimesGenerator = std::make_shared<RandomGeneratorNormal>(min, max, mean, stdDev);
+        }
+        else 
+        {
+            NS_LOG_WARN("Warning: Unknown type '" << interPacketTimes["type"] << "'. Skipping this entry.");
+        }
+        packetClass = std::make_shared<PacketClass>(id, payloadSizeGenerator, interPacketTimesGenerator);
+        trafficProfile.push_back(packetClass);
+    }
     iotApp->SetTrafficProfile(trafficProfile);
 }
 
@@ -162,7 +237,8 @@ main(int argc, char* argv[])
 
     Time::SetResolution(Time::NS);
     LogComponentEnableAll(LOG_PREFIX_TIME);
-    //LogComponentEnable("IotBasicExample", LOG_INFO);
+    LogComponentEnable("IotBasicExample", LOG_INFO);
+    LogComponentEnable("IotBasicExample", LOG_WARN);
     LogComponentEnable("IotPassiveApp", LOG_INFO);
     LogComponentEnable("IotClient", LOG_INFO);
     //LogComponentEnable("ApWifiMac", LOG_LEVEL_ALL);

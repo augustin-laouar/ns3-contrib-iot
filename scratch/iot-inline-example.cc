@@ -126,9 +126,11 @@ main(int argc, char* argv[])
         
     /*std::shared_ptr<PacketClassBasic> packetClass1 = std::make_shared<PacketClassBasic>(
         691, 1448, 744.381, 191.231, 0.00008, 2.019497, 0.05936, 0.077852);*/
-    camera->AddPacketClass(packetClass1);
-    camera->AddPacketClass(packetClass2);
-
+    std::vector<std::shared_ptr<PacketClass>> trafficProfile;
+    trafficProfile.push_back(packetClass1);
+    trafficProfile.push_back(packetClass2);
+    camera->SetTrafficProfile(trafficProfile);
+    
     camera->TraceConnectWithoutContext("Rx", MakeCallback(&CameraRx));
     camera->TraceConnectWithoutContext("Tx", MakeCallback(&CameraTx));
     camera->SetStartTime(Seconds(0.1));

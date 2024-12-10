@@ -1,7 +1,8 @@
 #ifndef PACKET_CLASS
 #define PACKET_CLASS
 #include <cstdint> 
-
+#include <memory>
+#include "random-generator.h"
 namespace ns3
 {
 
@@ -13,17 +14,24 @@ class PacketClass
 {
 public:
 
+    PacketClass(
+        uint16_t id,
+        std::shared_ptr<RandomGenerator> payloadSizeGenerator, 
+        std::shared_ptr<RandomGenerator> interPacketTimeGenerator);
+
     virtual ~PacketClass() = default;
 
     //bytes
-    virtual uint32_t GetPayloadSize() = 0;
+    uint32_t GetPayloadSize() const;
 
     //seconds
-    virtual double GetInterPacketTime() = 0;
+    double GetInterPacketTime() const;
     
     uint16_t GetId();
 protected: 
     uint16_t m_id;
+    std::shared_ptr<RandomGenerator> m_payloadSizeGenerator;
+    std::shared_ptr<RandomGenerator> m_interPacketTimeGenerator;
 };
 
 } // namespace ns3

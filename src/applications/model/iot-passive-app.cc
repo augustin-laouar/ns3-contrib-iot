@@ -94,7 +94,7 @@ IotPassiveApp::StartApplication()
             MakeNullCallback<void, Ptr<Socket>>());
 
         m_state = AppState::STARTED;
-        NS_LOG_INFO("Camera started, listening on port " << m_localPort);
+        NS_LOG_INFO("IoT application started, listening on port " << m_localPort);
     }
 }
 
@@ -128,7 +128,7 @@ IotPassiveApp::StopApplication()
     m_trafficProfileEvents.clear();
 
 
-    NS_LOG_INFO("IotPassiveApp stopped.");
+    NS_LOG_INFO("IoT application stopped.");
 }
 
 
@@ -179,7 +179,22 @@ bool
 IotPassiveApp::ConnectionRequestCallback(Ptr<Socket> socket, const Address &address) 
 {
     NS_LOG_FUNCTION(this << socket << address);
-    NS_LOG_INFO("Incoming connection request from " << address);
+    if (InetSocketAddress::IsMatchingType(address))
+    {
+        InetSocketAddress inetSocketAddress = InetSocketAddress::ConvertFrom(address);
+        Ipv4Address ipv4Address = inetSocketAddress.GetIpv4();
+        uint16_t port = inetSocketAddress.GetPort();
+        NS_LOG_INFO("Incoming connection request from " << ipv4Address
+                    << " port " << port);
+    }
+    else if (Ipv6Address::IsMatchingType(address))
+    {
+        const Inet6SocketAddress inetSocket6Address = Inet6SocketAddress::ConvertFrom(address);
+        Ipv6Address ipv6Address = inetSocket6Address.GetIpv6();
+        uint16_t port = inetSocket6Address.GetPort();
+        NS_LOG_INFO("Incoming connection request from " << ipv6Address
+                    << " port " << port);
+    }
     return true; // Accept all connections
 }
 
@@ -187,8 +202,23 @@ void
 IotPassiveApp::NewConnectionCreatedCallback(Ptr<Socket> socket, const Address &address) 
 {
     NS_LOG_FUNCTION(this << socket << address);
+    if (InetSocketAddress::IsMatchingType(address))
+    {
+        InetSocketAddress inetSocketAddress = InetSocketAddress::ConvertFrom(address);
+        Ipv4Address ipv4Address = inetSocketAddress.GetIpv4();
+        uint16_t port = inetSocketAddress.GetPort();
+        NS_LOG_INFO("New connection established with " << ipv4Address
+                    << " port " << port);
+    }
+    else if (Ipv6Address::IsMatchingType(address))
+    {
+        const Inet6SocketAddress inetSocket6Address = Inet6SocketAddress::ConvertFrom(address);
+        Ipv6Address ipv6Address = inetSocket6Address.GetIpv6();
+        uint16_t port = inetSocket6Address.GetPort();
+        NS_LOG_INFO("New connection established with " << ipv6Address
+                    << " port " << port);
+    }    
 
-    NS_LOG_INFO("New connection established with " << address);
     m_clientSockets[socket] = address;
 
     socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
@@ -210,7 +240,22 @@ IotPassiveApp::ConnectionClosedCallback(Ptr<Socket> socket)
 
     auto socketIt = m_clientSockets.find(socket);
     if (socketIt != m_clientSockets.end()) {
-        NS_LOG_INFO("Connection with " << socketIt->second << " closed.");
+        if (InetSocketAddress::IsMatchingType(socketIt->second))
+        {
+            InetSocketAddress inetSocketAddress = InetSocketAddress::ConvertFrom(socketIt->second);
+            Ipv4Address ipv4Address = inetSocketAddress.GetIpv4();
+            uint16_t port = inetSocketAddress.GetPort();
+            NS_LOG_INFO("Connection with " << ipv4Address
+                        << " port " << port << " closed");
+        }
+        else if (Ipv6Address::IsMatchingType(socketIt->second))
+        {
+            const Inet6SocketAddress inetSocket6Address = Inet6SocketAddress::ConvertFrom(socketIt->second);
+            Ipv6Address ipv6Address = inetSocket6Address.GetIpv6();
+            uint16_t port = inetSocket6Address.GetPort();
+            NS_LOG_INFO("New connection established with " << ipv6Address
+                        << " port " << port << " closed");
+        }    
         m_clientSockets.erase(socketIt);
 
         auto eventIt = m_trafficProfileEvents.find(socket);
@@ -254,10 +299,27 @@ IotPassiveApp::SendData(Ptr<Socket> socket, std::shared_ptr<PacketClass> packetC
     {
         Address clientAddress;
         socket->GetPeerName(clientAddress);
-        NS_LOG_INFO("[IOT_PASSIVE_APP] Sent packet. Size: " << packetSize
-                      << " bytes, Class ID: " << packetClass->GetId()
-                      << ", To: " << clientAddress);
-        m_txTrace(packet, packetClass->GetId());
+        if (InetSocketAddress::IsMatchingType(clientAddress))
+        {
+            InetSocketAddress inetSocketAddress = InetSocketAddress::ConvertFrom(clientAddress);
+            Ipv4Address ipv4Address = inetSocketAddress.GetIpv4();
+            uint16_t port = inetSocketAddress.GetPort();
+
+            NS_LOG_INFO("Sent " << packetSize
+                      << " bytes to " << ipv4Address
+                      << " port " << port);
+        }
+        else if (Ipv6Address::IsMatchingType(clientAddress))
+        {
+            const Inet6SocketAddress inetSocket6Address = Inet6SocketAddress::ConvertFrom(clientAddress);
+            Ipv6Address ipv6Address = inetSocket6Address.GetIpv6();
+            uint16_t port = inetSocket6Address.GetPort();
+            
+            NS_LOG_INFO("Sent " << packetSize
+                      << " bytes to " << ipv6Address
+                      << " port " << port);
+        }
+        m_txTrace(packet, clientAddress, packetClass->GetId());
     }
     else
     {

@@ -126,7 +126,7 @@ private:
     // TRACE SOURCES
     TracedCallback<Ptr<Socket>, const Address&> m_newConnectionTrace; ///< Trace for new connections.
     TracedCallback<Ptr<const Packet>, const Address&> m_rxTrace;      ///< Trace for received packets.
-    TracedCallback<Ptr<const Packet>, uint16_t> m_txTrace;            ///< Trace for transmitted packets.
+    TracedCallback<Ptr<const Packet>, const Address&, uint16_t> m_txTrace; ///< Trace for transmitted packets.
 };
 
 } // namespace ns3

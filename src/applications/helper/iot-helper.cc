@@ -1,10 +1,5 @@
 #include "iot-helper.h"
 #include <ns3/uinteger.h>
-#include <ns3/packet-class-basic.h>
-#include <ns3/packet-class-distribution.h>
-#include <ns3/packet-class.h>
-#include <ns3/pointer.h>
-#include <ns3/attribute.h>
 
 namespace ns3 {
 
@@ -14,8 +9,8 @@ namespace ns3 {
 IotClientHelper::IotClientHelper(const Address& address, uint16_t port)
     : ApplicationHelper("ns3::IotClient") 
 {
-    m_factory.Set("RemoteCameraAddress", AddressValue(address));
-    m_factory.Set("RemoteCameraPort", UintegerValue(port));
+    m_factory.Set("RemoteAddress", AddressValue(address));
+    m_factory.Set("RemotePort", UintegerValue(port));
 }
 
 // IOT PASSIVE APP HELPER /////////////////////////////////////////////////////////
