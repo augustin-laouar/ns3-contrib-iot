@@ -12,7 +12,7 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("IotBasicExample");
 
 
-void TraceCameraTxPacket(Ptr<const Packet> packet, const Address& clientAddress, uint16_t packetClassId)
+void TraceIotTxPacket(Ptr<const Packet> packet, const Address& clientAddress, uint16_t packetClassId)
 {
     static std::ofstream csvFile("camera_tx_packets.csv", std::ios::out | std::ios::app);
     static bool isHeaderWritten = false;
@@ -48,7 +48,7 @@ void TraceCameraTxPacket(Ptr<const Packet> packet, const Address& clientAddress,
 }
 
 
-void TraceRxCameraPacket(Ptr<const Packet> packet, const Address& from)
+void TraceIotRxPacket(Ptr<const Packet> packet, const Address& from)
 {
     static std::ofstream csvFile("camera_rx_packets.csv", std::ios::out | std::ios::app);
     static bool isHeaderWritten = false;
@@ -300,7 +300,7 @@ main(int argc, char* argv[])
 
     LoadPacketClassFromFile(iotApp, "/home/augustin/projects/ens/ns/ns-allinone-3.43/ns-3.43/scratch/tapo-c200-move-rv.json");
     iotApp->SetStartTime(Seconds(0.0));
-    iotApp->TraceConnectWithoutContext("Tx", MakeCallback(&TraceCameraTxPacket));
+    iotApp->TraceConnectWithoutContext("Tx", MakeCallback(&TraceIotTxPacket));
 
     double delay = 0.2;
     for (uint32_t i = 0; i < wifiStaNodes.GetN(); ++i) {
